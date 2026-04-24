@@ -44,12 +44,38 @@
       flex: 1;
       overflow: hidden;
     }
-
-    .column {
+    
+    .chart-column {
+      width: 50%;
+      padding: 10px;
+      box-sizing: border-box;
+      overflow-y: auto;
+      border-right: 1px solid #ddd;
+    }
+    
+    .jobs-column {
+      width: 20%;
+      padding: 10px;
+      box-sizing: border-box;
+      overflow-y: auto;
+      border-right: 1px solid #ddd;
+      background: #f9fafb;
+    }
+    
+    .employees-column {
+      width: 30%;
       padding: 10px;
       box-sizing: border-box;
       overflow-y: auto;
     }
+    
+    #projectChart {
+      width: 100%;
+      height: 300px;
+      background: #fff;
+      border: 1px solid #ddd;
+    }
+
 
     .jobs-column {
       width: 25%;
@@ -226,6 +252,19 @@
       display: none;
     }
 
+    .job-category-header {
+      font-weight: bold;
+      background: #e2e8f0;
+      padding: 6px;
+      cursor: pointer;
+      margin-top: 10px;
+      border-radius: 4px;
+    }
+    
+    .job-category-section.collapsed .job-category-list {
+      display: none;
+    }
+
     footer.toolbar-footer {
       position: fixed;
       bottom: 0;
@@ -264,9 +303,16 @@
 
 <div class="container">
 
+  <!-- Chart column -->
+  <div class="chart-column">
+    <h2>Project Allocation</h2>
+    <canvas id="projectChart"></canvas>
+  </div>
+
   <!-- Jobs column -->
-  <div class="column jobs-column">
+  <div class="jobs-column">
     <h2>Jobs</h2>
+
     <div class="form-inline">
       <input type="text" id="jobNameInput" placeholder="Job name" />
       <select id="jobCategoryInput">
@@ -276,14 +322,13 @@
       </select>
       <button id="addJobBtn">Add Job</button>
     </div>
-    <div id="jobsList" class="list"></div>
+
+    <div id="jobsList"></div>
   </div>
 
   <!-- Employees column -->
-  <div class="column employees-column">
+  <div class="employees-column">
     <h2>Employees</h2>
-
-    <canvas id="projectChart" height="150"></canvas>
 
     <div class="form-inline">
       <input type="text" id="employeeNameInput" placeholder="Employee name" />
@@ -291,7 +336,7 @@
       <button id="addEmployeeBtn">Add Employee</button>
     </div>
 
-    <div id="employeesList" class="list"></div>
+    <div id="employeesList"></div>
   </div>
 
 </div>
@@ -374,41 +419,59 @@ function renderWeekLabel() {
 }
 
 function renderJobs() {
-  jobsListEl.innerHTML = '';
-  data.jobs.forEach(job => {
-    const div = document.createElement('div');
-    div.className = 'item';
-    div.draggable = true;
-    div.dataset.jobId = job.id;
+  const container = document.getElementById('jobsList');
+  container.innerHTML = '';
 
-    const span = document.createElement('span');
-    span.textContent = job.name;
+  const categories = ["Active", "Upcoming", "Complete"];
 
-    const categorySelect = document.createElement('select');
-    ["Active", "Upcoming", "Complete"].forEach(cat => {
-      const opt = document.createElement('option');
-      opt.value = cat;
-      opt.textContent = cat;
-      if (job.category === cat) opt.selected = true;
-      categorySelect.appendChild(opt);
-    });
-    categorySelect.onchange = () => job.category = categorySelect.value;
+  categories.forEach(cat => {
+    const section = document.createElement('div');
+    section.className = 'job-category-section';
 
-    const removeBtn = document.createElement('button');
-    removeBtn.textContent = 'X';
-    removeBtn.onclick = () => removeJob(job.id);
+    const header = document.createElement('div');
+    header.className = 'job-category-header';
+    header.textContent = cat;
+    header.onclick = () => section.classList.toggle('collapsed');
 
-    div.appendChild(span);
-    div.appendChild(categorySelect);
-    div.appendChild(removeBtn);
+    const list = document.createElement('div');
+    list.className = 'job-category-list';
 
-    div.addEventListener('dragstart', e => {
-      div.classList.add('dragging');
-      e.dataTransfer.setData('text/plain', job.id);
-    });
-    div.addEventListener('dragend', () => div.classList.remove('dragging'));
+    data.jobs
+      .filter(j => j.category === cat)
+      .forEach(job => {
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.draggable = true;
+        div.dataset.jobId = job.id;
 
-    jobsListEl.appendChild(div);
+        const span = document.createElement('span');
+        span.textContent = job.name;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.textContent = 'X';
+        removeBtn.onclick = () => removeJob(job.id);
+
+        div.appendChild(span);
+        div.appendChild(removeBtn);
+
+        div.addEventListener('dragstart', e => {
+          e.dataTransfer.setData('text/plain', job.id);
+        });
+
+        div.addEventListener('dragover', e => e.preventDefault());
+
+        div.addEventListener('drop', e => {
+          e.preventDefault();
+          const draggedId = e.dataTransfer.getData('text/plain');
+          reorderJob(draggedId, job.id, cat);
+        });
+
+        list.appendChild(div);
+      });
+
+    section.appendChild(header);
+    section.appendChild(list);
+    container.appendChild(section);
   });
 }
 
@@ -576,20 +639,27 @@ function renderProjectChart() {
     }
   });
 
-  ctx.clearRect(0, 0, 2000, 300);
+  const canvas = document.getElementById('projectChart');
+  const width = canvas.width = canvas.clientWidth;
+  const height = canvas.height = canvas.clientHeight;
 
+  ctx.clearRect(0, 0, width, height);
+
+  if (labels.length === 0) return;
+
+  const max = Math.max(...values);
   const barWidth = 40;
-  const gap = 20;
+  const gap = 30;
 
   labels.forEach((label, i) => {
     const x = i * (barWidth + gap) + 40;
-    const height = values[i] * 2;
+    const barHeight = (values[i] / max) * (height - 60);
 
     ctx.fillStyle = "#3b82f6";
-    ctx.fillRect(x, 150 - height, barWidth, height);
+    ctx.fillRect(x, height - barHeight - 20, barWidth, barHeight);
 
     ctx.fillStyle = "#000";
-    ctx.fillText(label, x, 165);
+    ctx.fillText(label, x, height - 5);
   });
 }
 
@@ -676,6 +746,25 @@ function removeAssignment(weekKey, empId, jobId) {
     delete empAssignments[jobId];
   }
   renderEmployees();
+}
+  
+function reorderJob(dragId, targetId, category) {
+  const jobs = data.jobs.filter(j => j.category === category);
+  const dragIndex = jobs.findIndex(j => j.id === dragId);
+  const targetIndex = jobs.findIndex(j => j.id === targetId);
+
+  if (dragIndex === -1 || targetIndex === -1) return;
+
+  const [moved] = jobs.splice(dragIndex, 1);
+  jobs.splice(targetIndex, 0, moved);
+
+  // Rebuild job list preserving other categories
+  data.jobs = [
+    ...data.jobs.filter(j => j.category !== category),
+    ...jobs
+  ];
+
+  renderJobs();
 }
 
 /* ------------------ WEEK NAVIGATION ------------------ */
