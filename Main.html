@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+
+  <!-- Page title -->
+  <title>Estimation Management Planner</title>
+
+  <!-- Load external stylesheet -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+
+<!-- -----------------------------------------------------------
+     HEADER AREA
+     Shows the title and week navigation buttons
+------------------------------------------------------------ -->
+<header>
+  <h1>Estimation Management Planner</h1>
+
+  <div class="week-controls">
+    <!-- Move one week backward -->
+    <button id="prevWeekBtn">&lt; Prev</button>
+
+    <!-- Jump back to the current week -->
+    <button id="jumpToPresentBtn">Jump to Present</button>
+
+    <!-- Displays the current week range -->
+    <span id="weekLabel"></span>
+
+    <!-- Move one week forward -->
+    <button id="nextWeekBtn">Next &gt;</button>
+  </div>
+</header>
+
+<!-- -----------------------------------------------------------
+     MAIN 3‑COLUMN LAYOUT
+     Left = Chart
+     Middle = Jobs
+     Right = Employees
+------------------------------------------------------------ -->
+<div class="container">
+
+  <!-- ------------------ CHART COLUMN ---------------------- -->
+  <div class="chart-column">
+    <h2>Project Allocation</h2>
+
+    <!-- Shows utilization summary -->
+    <div id="chartHeaderLine" class="chart-header-line"></div>
+
+    <!-- Canvas where the bar chart is drawn -->
+    <canvas id="projectChart"></canvas>
+
+    <!-- Legend showing project colors and hours -->
+    <div id="chartLegend" class="chart-legend"></div>
+  </div>
+
+  <!-- Divider between chart and jobs -->
+  <div class="divider" id="divider1"></div>
+
+  <!-- ------------------ JOBS COLUMN ----------------------- -->
+  <div class="jobs-column">
+    <h2>Jobs</h2>
+
+    <!-- Add new job form -->
+    <div class="form-inline">
+      <input type="text" id="jobNameInput" placeholder="Job name" />
+      <select id="jobCategoryInput">
+        <option>Active</option>
+        <option>Upcoming</option>
+        <option>Complete</option>
+      </select>
+      <input type="color" id="jobColorInput" value="#3b82f6" />
+      <button id="addJobBtn">Add Job</button>
+    </div>
+
+    <!-- Where all jobs and their subtasks are rendered -->
+    <div id="jobsList"></div>
+  </div>
+
+  <!-- Divider between jobs and employees -->
+  <div class="divider" id="divider2"></div>
+
+  <!-- ------------------ EMPLOYEES COLUMN ------------------ -->
+  <div class="employees-column">
+    <h2>Employees</h2>
+
+    <!-- Add new employee form -->
+    <div class="form-inline">
+      <input type="text" id="employeeNameInput" placeholder="Employee name" />
+      <input type="number" id="employeeBudgetInput" placeholder="Weekly hours" min="1" />
+      <select id="employeeDistrictInput">
+        <option>Electrical</option>
+        <option>Instrumentation</option>
+        <option>Flex</option>
+      </select>
+      <button id="addEmployeeBtn">Add Employee</button>
+    </div>
+
+    <!-- Where employees and their assignments appear -->
+    <div id="employeesList" class="list"></div>
+  </div>
+
+</div>
+
+<!-- -----------------------------------------------------------
+     FOOTER TOOLBAR
+     Contains export/import buttons
+------------------------------------------------------------ -->
+<footer class="toolbar-footer">
+  <div class="toolbar">
+
+    <!-- Export CSV -->
+    <button id="exportCsvBtn">Export to CSV</button>
+
+    <!-- Export JSON -->
+    <button id="exportJsonBtn">Export JSON</button>
+
+    <!-- Import JSON -->
+    <label>
+      Import JSON
+      <input type="file" id="importJsonInput" accept=".json" />
+    </label>
+
+  </div>
+</footer>
+
+<!-- -----------------------------------------------------------
+     LOAD JAVASCRIPT LOGIC
+     (This file contains all dynamic behavior)
+------------------------------------------------------------ -->
+<script src="script.js"></script>
+
+</body>
+</html>
