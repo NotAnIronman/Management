@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Weekly Work Delegation Planner</title>
+  <title>Estimation Management Planner</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -44,15 +44,16 @@
       flex: 1;
       overflow: hidden;
     }
-    
+
     .chart-column {
       width: 50%;
       padding: 10px;
       box-sizing: border-box;
       overflow-y: auto;
       border-right: 1px solid #ddd;
+      background: #ffffff;
     }
-    
+
     .jobs-column {
       width: 20%;
       padding: 10px;
@@ -61,30 +62,12 @@
       border-right: 1px solid #ddd;
       background: #f9fafb;
     }
-    
+
     .employees-column {
       width: 30%;
       padding: 10px;
       box-sizing: border-box;
       overflow-y: auto;
-    }
-    
-    #projectChart {
-      width: 100%;
-      height: 300px;
-      background: #fff;
-      border: 1px solid #ddd;
-    }
-
-
-    .jobs-column {
-      width: 25%;
-      border-right: 1px solid #ddd;
-      background: #f9fafb;
-    }
-
-    .employees-column {
-      flex: 1;
       background: #ffffff;
     }
 
@@ -107,10 +90,6 @@
       align-items: center;
       justify-content: space-between;
       cursor: grab;
-    }
-
-    .item.dragging {
-      opacity: 0.5;
     }
 
     .item span {
@@ -156,6 +135,7 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 6px;
+      gap: 6px;
     }
 
     .employee-name {
@@ -176,10 +156,14 @@
       margin-bottom: 6px;
     }
 
+    .gauge.over-budget {
+      box-shadow: 0 0 0 2px #ef4444 inset;
+    }
+
     .gauge-fill {
-      height: 100%;
-      background: #3b82f6;
-      transition: width 0.2s ease;
+      position: absolute;
+      top: 0;
+      bottom: 0;
     }
 
     .gauge-label {
@@ -238,7 +222,8 @@
 
     .subtask-row {
       display: flex;
-      justify-content: space-between;
+      align-items: center;
+      gap: 4px;
       font-size: 11px;
       background: #eef2ff;
       padding: 2px 4px;
@@ -246,22 +231,21 @@
       border-radius: 3px;
     }
 
+    .subtask-row input[type="number"] {
+      width: 50px;
+      font-size: 11px;
+    }
+
+    .subtask-row input[type="color"] {
+      width: 30px;
+      padding: 0;
+      border: none;
+      background: transparent;
+    }
+
     .employee-card.collapsed .employee-dropzone,
     .employee-card.collapsed .gauge,
     .employee-card.collapsed .gauge-label {
-      display: none;
-    }
-
-    .job-category-header {
-      font-weight: bold;
-      background: #e2e8f0;
-      padding: 6px;
-      cursor: pointer;
-      margin-top: 10px;
-      border-radius: 4px;
-    }
-    
-    .job-category-section.collapsed .job-category-list {
       display: none;
     }
 
@@ -275,6 +259,7 @@
       display: flex;
       justify-content: center;
       border-top: 1px solid #444;
+      z-index: 10;
     }
 
     footer .toolbar button,
@@ -284,14 +269,44 @@
 
     #projectChart {
       width: 100%;
-      margin-bottom: 20px;
+      height: 300px;
       background: #fff;
       border: 1px solid #ddd;
+      display: block;
+    }
+
+    .job-category-header {
+      font-weight: bold;
+      background: #e2e8f0;
+      padding: 6px;
+      cursor: pointer;
+      margin-top: 10px;
+      border-radius: 4px;
+    }
+
+    .job-category-list {
+      margin-top: 4px;
+    }
+
+    .job-category-section.collapsed .job-category-list {
+      display: none;
+    }
+
+    @media (max-width: 1000px) {
+      .container {
+        flex-direction: column;
+      }
+      .chart-column,
+      .jobs-column,
+      .employees-column {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #ddd;
+      }
     }
   </style>
 </head>
 <body>
-
 <header>
   <h1>Weekly Work Delegation Planner</h1>
   <div class="week-controls">
@@ -302,7 +317,6 @@
 </header>
 
 <div class="container">
-
   <!-- Chart column -->
   <div class="chart-column">
     <h2>Project Allocation</h2>
@@ -312,7 +326,6 @@
   <!-- Jobs column -->
   <div class="jobs-column">
     <h2>Jobs</h2>
-
     <div class="form-inline">
       <input type="text" id="jobNameInput" placeholder="Job name" />
       <select id="jobCategoryInput">
@@ -322,23 +335,19 @@
       </select>
       <button id="addJobBtn">Add Job</button>
     </div>
-
     <div id="jobsList"></div>
   </div>
 
   <!-- Employees column -->
   <div class="employees-column">
     <h2>Employees</h2>
-
     <div class="form-inline">
       <input type="text" id="employeeNameInput" placeholder="Employee name" />
       <input type="number" id="employeeBudgetInput" placeholder="Weekly hours" min="1" />
       <button id="addEmployeeBtn">Add Employee</button>
     </div>
-
-    <div id="employeesList"></div>
+    <div id="employeesList" class="list"></div>
   </div>
-
 </div>
 
 <footer class="toolbar-footer">
@@ -353,92 +362,101 @@
 </footer>
 
 <script>
-/* ------------------ DATA MODEL ------------------ */
-let data = {
-  employees: [],
-  jobs: [],
-  assignments: {},
-  currentWeekStart: startOfWeek(new Date())
-};
+  // ---------- Data model ----------
+  let data = {
+    employees: [],
+    jobs: [],
+    assignments: {},
+    currentWeekStart: startOfWeek(new Date())
+  };
 
-function uuid() {
-  return 'xxxx-4xxx-yxxx-xxxx'.replace(/[xy]/g, c => {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
-}
+  function uuid() {
+    return 'xxxx-4xxx-yxxx-xxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
 
-function startOfWeek(date) {
-  const d = new Date(date);
-  const day = d.getDay();
-  const diff = (day === 0 ? -6 : 1) - day;
-  d.setDate(d.getDate() + diff);
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
+  function startOfWeek(date) {
+    const d = new Date(date);
+    const day = d.getDay();
+    const diff = (day === 0 ? -6 : 1) - day;
+    d.setDate(d.getDate() + diff);
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }
 
-function formatDate(d) {
-  return d.toISOString().slice(0, 10);
-}
+  function formatDate(d) {
+    return d.toISOString().slice(0, 10);
+  }
 
-function getWeekKey(date) {
-  return formatDate(startOfWeek(date));
-}
+  function getWeekKey(date) {
+    return formatDate(startOfWeek(date));
+  }
 
-function getCurrentWeekKey() {
-  return getWeekKey(data.currentWeekStart);
-}
+  function getCurrentWeekKey() {
+    return getWeekKey(data.currentWeekStart);
+  }
 
-function getAssignmentsForWeek(weekKey) {
-  if (!data.assignments[weekKey]) data.assignments[weekKey] = {};
-  return data.assignments[weekKey];
-}
+  function getAssignmentsForWeek(weekKey) {
+    if (!data.assignments[weekKey]) data.assignments[weekKey] = {};
+    return data.assignments[weekKey];
+  }
 
-function getEmployeeAssignmentsForWeek(weekKey, employeeId) {
-  const week = getAssignmentsForWeek(weekKey);
-  if (!week[employeeId]) week[employeeId] = {};
-  return week[employeeId];
-}
+  function getEmployeeAssignmentsForWeek(weekKey, employeeId) {
+    const week = getAssignmentsForWeek(weekKey);
+    if (!week[employeeId]) week[employeeId] = {};
+    return week[employeeId];
+  }
 
-function totalHoursForEmployeeWeek(weekKey, employeeId) {
-  const empAssignments = getEmployeeAssignmentsForWeek(weekKey, employeeId);
-  return Object.values(empAssignments).reduce((sum, a) => sum + (a.hours || 0), 0);
-}
+  function totalHoursForEmployeeWeek(weekKey, employeeId) {
+    const empAssignments = getEmployeeAssignmentsForWeek(weekKey, employeeId);
+    let sum = 0;
+    Object.values(empAssignments).forEach(a => {
+      sum += (a.hours || 0);
+      if (a.subtasks) {
+        a.subtasks.forEach(sub => {
+          sum += (sub.hours || 0);
+        });
+      }
+    });
+    return sum;
+  }
 
-/* ------------------ RENDERING ------------------ */
-const weekLabelEl = document.getElementById('weekLabel');
-const jobsListEl = document.getElementById('jobsList');
-const employeesListEl = document.getElementById('employeesList');
+  // ---------- Rendering ----------
+  const weekLabelEl = document.getElementById('weekLabel');
+  const jobsListEl = document.getElementById('jobsList');
+  const employeesListEl = document.getElementById('employeesList');
 
-function renderWeekLabel() {
-  const start = data.currentWeekStart;
-  const end = new Date(start);
-  end.setDate(start.getDate() + 6);
-  weekLabelEl.textContent = `${formatDate(start)} to ${formatDate(end)}`;
-}
+  function renderWeekLabel() {
+    const start = data.currentWeekStart;
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    weekLabelEl.textContent = `${formatDate(start)} to ${formatDate(end)}`;
+  }
 
-function renderJobs() {
-  const container = document.getElementById('jobsList');
-  container.innerHTML = '';
+  function renderJobs() {
+    const container = jobsListEl;
+    container.innerHTML = '';
 
-  const categories = ["Active", "Upcoming", "Complete"];
+    const categories = ["Active", "Upcoming", "Complete"];
 
-  categories.forEach(cat => {
-    const section = document.createElement('div');
-    section.className = 'job-category-section';
+    categories.forEach(cat => {
+      const section = document.createElement('div');
+      section.className = 'job-category-section';
 
-    const header = document.createElement('div');
-    header.className = 'job-category-header';
-    header.textContent = cat;
-    header.onclick = () => section.classList.toggle('collapsed');
+      const header = document.createElement('div');
+      header.className = 'job-category-header';
+      header.textContent = cat;
+      header.onclick = () => section.classList.toggle('collapsed');
 
-    const list = document.createElement('div');
-    list.className = 'job-category-list';
+      const list = document.createElement('div');
+      list.className = 'job-category-list';
 
-    data.jobs
-      .filter(j => j.category === cat)
-      .forEach(job => {
+      const jobsInCat = data.jobs.filter(j => j.category === cat);
+
+      jobsInCat.forEach(job => {
         const div = document.createElement('div');
         div.className = 'item';
         div.draggable = true;
@@ -447,11 +465,25 @@ function renderJobs() {
         const span = document.createElement('span');
         span.textContent = job.name;
 
+        const categorySelect = document.createElement('select');
+        ["Active", "Upcoming", "Complete"].forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c;
+          opt.textContent = c;
+          if (job.category === c) opt.selected = true;
+          categorySelect.appendChild(opt);
+        });
+        categorySelect.onchange = () => {
+          job.category = categorySelect.value;
+          renderJobs();
+        };
+
         const removeBtn = document.createElement('button');
         removeBtn.textContent = 'X';
         removeBtn.onclick = () => removeJob(job.id);
 
         div.appendChild(span);
+        div.appendChild(categorySelect);
         div.appendChild(removeBtn);
 
         div.addEventListener('dragstart', e => {
@@ -469,443 +501,489 @@ function renderJobs() {
         list.appendChild(div);
       });
 
-    section.appendChild(header);
-    section.appendChild(list);
-    container.appendChild(section);
-  });
-}
-
-function renderEmployees() {
-  employeesListEl.innerHTML = '';
-  const weekKey = getCurrentWeekKey();
-
-  data.employees.forEach(emp => {
-    const card = document.createElement('div');
-    card.className = 'employee-card';
-
-    const header = document.createElement('div');
-    header.className = 'employee-header';
-
-    const nameSpan = document.createElement('span');
-    nameSpan.className = 'employee-name';
-    nameSpan.textContent = emp.name;
-
-    const budgetSpan = document.createElement('span');
-    budgetSpan.className = 'employee-budget';
-    const total = totalHoursForEmployeeWeek(weekKey, emp.id);
-    budgetSpan.textContent = `Allocated: ${total}/${emp.weeklyBudget} hrs`;
-
-    const toggleBtn = document.createElement('button');
-    toggleBtn.textContent = 'Toggle';
-    toggleBtn.onclick = () => card.classList.toggle('collapsed');
-
-    const removeBtn = document.createElement('button');
-    removeBtn.textContent = 'Remove';
-    removeBtn.onclick = () => removeEmployee(emp.id);
-
-    header.appendChild(nameSpan);
-    header.appendChild(budgetSpan);
-    header.appendChild(toggleBtn);
-    header.appendChild(removeBtn);
-
-    const pct = emp.weeklyBudget > 0 ? Math.round((total / emp.weeklyBudget) * 100) : 0;
-
-    const gaugeLabel = document.createElement('div');
-    gaugeLabel.className = 'gauge-label';
-    gaugeLabel.textContent = `Usage: ${pct}%`;
-
-    const gauge = document.createElement('div');
-    gauge.className = 'gauge';
-    const gaugeFill = document.createElement('div');
-    gaugeFill.className = 'gauge-fill';
-    gaugeFill.style.width = pct + '%';
-    gaugeFill.style.background = pct > 100 ? '#ef4444' : '#3b82f6';
-    gauge.appendChild(gaugeFill);
-
-    const dropzone = document.createElement('div');
-    dropzone.className = 'employee-dropzone';
-    dropzone.dataset.employeeId = emp.id;
-
-    dropzone.addEventListener('dragover', e => {
-      e.preventDefault();
-      dropzone.classList.add('over');
+      section.appendChild(header);
+      section.appendChild(list);
+      container.appendChild(section);
     });
-    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('over'));
-    dropzone.addEventListener('drop', e => {
-      e.preventDefault();
-      dropzone.classList.remove('over');
-      const jobId = e.dataTransfer.getData('text/plain');
-      if (jobId) addAssignment(weekKey, emp.id, jobId);
-    });
+  }
 
-    const empAssignments = getEmployeeAssignmentsForWeek(weekKey, emp.id);
-    Object.keys(empAssignments).forEach(jobId => {
-      const job = data.jobs.find(j => j.id === jobId);
-      if (!job) return;
+  function reorderJob(dragId, targetId, category) {
+    const jobs = data.jobs.filter(j => j.category === category);
+    const dragIndex = jobs.findIndex(j => j.id === dragId);
+    const targetIndex = jobs.findIndex(j => j.id === targetId);
+    if (dragIndex === -1 || targetIndex === -1) return;
 
-      const assignment = empAssignments[jobId];
+    const [moved] = jobs.splice(dragIndex, 1);
+    jobs.splice(targetIndex, 0, moved);
 
-      const row = document.createElement('div');
-      row.className = 'assignment';
+    data.jobs = [
+      ...data.jobs.filter(j => j.category !== category),
+      ...jobs
+    ];
 
-      const top = document.createElement('div');
-      top.className = 'assignment-top';
+    renderJobs();
+  }
 
-      const label = document.createElement('span');
-      label.textContent = job.name;
+  function renderEmployees() {
+    employeesListEl.innerHTML = '';
+    const weekKey = getCurrentWeekKey();
 
-      const hoursInput = document.createElement('input');
-      hoursInput.type = 'number';
-      hoursInput.min = '0';
-      hoursInput.step = '0.25';
-      hoursInput.value = assignment.hours || 0;
-      hoursInput.onchange = () => updateAssignmentHours(weekKey, emp.id, jobId, parseFloat(hoursInput.value) || 0);
+    data.employees.forEach(emp => {
+      const card = document.createElement('div');
+      card.className = 'employee-card';
 
-      const removeAssignBtn = document.createElement('button');
-      removeAssignBtn.textContent = 'X';
-      removeAssignBtn.onclick = () => removeAssignment(weekKey, emp.id, jobId);
+      const header = document.createElement('div');
+      header.className = 'employee-header';
 
-      top.appendChild(label);
-      top.appendChild(hoursInput);
-      top.appendChild(removeAssignBtn);
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'employee-name';
+      nameSpan.textContent = emp.name;
 
-      const subList = document.createElement('div');
-      subList.className = 'subtask-list';
+      const total = totalHoursForEmployeeWeek(weekKey, emp.id);
+      const budgetSpan = document.createElement('span');
+      budgetSpan.className = 'employee-budget';
+      budgetSpan.textContent = `Allocated: ${total}/${emp.weeklyBudget} hrs`;
 
-      assignment.subtasks = assignment.subtasks || [];
-      assignment.subtasks.forEach((sub, index) => {
-        const subRow = document.createElement('div');
-        subRow.className = 'subtask-row';
-        subRow.textContent = sub;
+      const toggleBtn = document.createElement('button');
+      toggleBtn.textContent = 'Toggle';
+      toggleBtn.onclick = () => card.classList.toggle('collapsed');
 
-        const del = document.createElement('button');
-        del.textContent = 'X';
-        del.onclick = () => {
-          assignment.subtasks.splice(index, 1);
-          renderEmployees();
-        };
+      const removeBtn = document.createElement('button');
+      removeBtn.textContent = 'Remove';
+      removeBtn.onclick = () => removeEmployee(emp.id);
 
-        subRow.appendChild(del);
-        subList.appendChild(subRow);
+      header.appendChild(nameSpan);
+      header.appendChild(budgetSpan);
+      header.appendChild(toggleBtn);
+      header.appendChild(removeBtn);
+
+      const gaugeLabel = document.createElement('div');
+      gaugeLabel.className = 'gauge-label';
+      const pct = emp.weeklyBudget > 0 ? Math.round((total / emp.weeklyBudget) * 100) : 0;
+      gaugeLabel.textContent = `Usage: ${pct}%`;
+
+      const gauge = document.createElement('div');
+      gauge.className = 'gauge';
+      if (pct > 100) gauge.classList.add('over-budget');
+
+      const empAssignments = getEmployeeAssignmentsForWeek(weekKey, emp.id);
+
+      // stacked segments
+      let offset = 0;
+      Object.entries(empAssignments).forEach(([jobId, a]) => {
+        const mainHours = a.hours || 0;
+        const mainPct = emp.weeklyBudget > 0 ? (mainHours / emp.weeklyBudget) * 100 : 0;
+
+        if (mainPct > 0) {
+          const mainFill = document.createElement('div');
+          mainFill.className = 'gauge-fill';
+          mainFill.style.left = offset + '%';
+          mainFill.style.width = mainPct + '%';
+          mainFill.style.background = '#3b82f6';
+          gauge.appendChild(mainFill);
+          offset += mainPct;
+        }
+
+        (a.subtasks || []).forEach(sub => {
+          const subHours = sub.hours || 0;
+          const subPct = emp.weeklyBudget > 0 ? (subHours / emp.weeklyBudget) * 100 : 0;
+          if (subPct > 0) {
+            const subFill = document.createElement('div');
+            subFill.className = 'gauge-fill';
+            subFill.style.left = offset + '%';
+            subFill.style.width = subPct + '%';
+            subFill.style.background = sub.color || '#22c55e';
+            gauge.appendChild(subFill);
+            offset += subPct;
+          }
+        });
       });
 
-      const subInput = document.createElement('input');
-      subInput.placeholder = "Add subtask";
-      subInput.onkeydown = e => {
-        if (e.key === 'Enter' && subInput.value.trim()) {
-          assignment.subtasks.push(subInput.value.trim());
-          subInput.value = '';
-          renderEmployees();
-        }
-      };
+      const dropzone = document.createElement('div');
+      dropzone.className = 'employee-dropzone';
+      dropzone.dataset.employeeId = emp.id;
 
-      row.appendChild(top);
-      row.appendChild(subList);
-      row.appendChild(subInput);
+      dropzone.addEventListener('dragover', e => {
+        e.preventDefault();
+        dropzone.classList.add('over');
+      });
+      dropzone.addEventListener('dragleave', () => dropzone.classList.remove('over'));
+      dropzone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropzone.classList.remove('over');
+        const jobId = e.dataTransfer.getData('text/plain');
+        if (jobId) addAssignment(weekKey, emp.id, jobId);
+      });
 
-      dropzone.appendChild(row);
+      Object.keys(empAssignments).forEach(jobId => {
+        const job = data.jobs.find(j => j.id === jobId);
+        if (!job) return;
+        const assignment = empAssignments[jobId];
+
+        const row = document.createElement('div');
+        row.className = 'assignment';
+
+        const top = document.createElement('div');
+        top.className = 'assignment-top';
+
+        const label = document.createElement('span');
+        label.textContent = job.name;
+
+        const hoursInput = document.createElement('input');
+        hoursInput.type = 'number';
+        hoursInput.min = '0';
+        hoursInput.step = '0.25';
+        hoursInput.value = assignment.hours || 0;
+        hoursInput.onchange = () => {
+          updateAssignmentHours(weekKey, emp.id, jobId, parseFloat(hoursInput.value) || 0);
+        };
+
+        const removeAssignBtn = document.createElement('button');
+        removeAssignBtn.textContent = 'X';
+        removeAssignBtn.onclick = () => removeAssignment(weekKey, emp.id, jobId);
+
+        top.appendChild(label);
+        top.appendChild(hoursInput);
+        top.appendChild(removeAssignBtn);
+
+        const subList = document.createElement('div');
+        subList.className = 'subtask-list';
+
+        assignment.subtasks = assignment.subtasks || [];
+        assignment.subtasks.forEach((sub, index) => {
+          const subRow = document.createElement('div');
+          subRow.className = 'subtask-row';
+
+          const subName = document.createElement('span');
+          subName.textContent = sub.name;
+
+          const subHours = document.createElement('input');
+          subHours.type = 'number';
+          subHours.min = '0';
+          subHours.step = '0.25';
+          subHours.value = sub.hours || 0;
+          subHours.onchange = () => {
+            sub.hours = parseFloat(subHours.value) || 0;
+            renderEmployees();
+          };
+
+          const colorInput = document.createElement('input');
+          colorInput.type = 'color';
+          colorInput.value = sub.color || '#22c55e';
+          colorInput.onchange = () => {
+            sub.color = colorInput.value;
+            renderEmployees();
+          };
+
+          const del = document.createElement('button');
+          del.textContent = 'X';
+          del.onclick = () => {
+            assignment.subtasks.splice(index, 1);
+            renderEmployees();
+          };
+
+          subRow.appendChild(subName);
+          subRow.appendChild(subHours);
+          subRow.appendChild(colorInput);
+          subRow.appendChild(del);
+          subList.appendChild(subRow);
+        });
+
+        const subInput = document.createElement('input');
+        subInput.placeholder = "Add subtask";
+        subInput.onkeydown = e => {
+          if (e.key === 'Enter' && subInput.value.trim()) {
+            assignment.subtasks.push({
+              name: subInput.value.trim(),
+              hours: 0,
+              color: '#22c55e'
+            });
+            subInput.value = '';
+            renderEmployees();
+          }
+        };
+
+        row.appendChild(top);
+        row.appendChild(subList);
+        row.appendChild(subInput);
+
+        dropzone.appendChild(row);
+      });
+
+      card.appendChild(header);
+      card.appendChild(gaugeLabel);
+      card.appendChild(gauge);
+      card.appendChild(dropzone);
+
+      employeesListEl.appendChild(card);
+    });
+  }
+
+  function renderProjectChart() {
+    const weekKey = getCurrentWeekKey();
+    const canvas = document.getElementById('projectChart');
+    const ctx = canvas.getContext('2d');
+
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+
+    const totals = {};
+    const week = getAssignmentsForWeek(weekKey);
+
+    Object.values(week).forEach(empAssignments => {
+      Object.entries(empAssignments).forEach(([jobId, a]) => {
+        let sum = a.hours || 0;
+        (a.subtasks || []).forEach(sub => {
+          sum += (sub.hours || 0);
+        });
+        totals[jobId] = (totals[jobId] || 0) + sum;
+      });
     });
 
-    card.appendChild(header);
-    card.appendChild(gaugeLabel);
-    card.appendChild(gauge);
-    card.appendChild(dropzone);
+    const labels = [];
+    const values = [];
 
-    employeesListEl.appendChild(card);
-  });
-}
-
-function renderProjectChart() {
-  const weekKey = getCurrentWeekKey();
-  const ctx = document.getElementById('projectChart').getContext('2d');
-
-  const totals = {};
-  const week = getAssignmentsForWeek(weekKey);
-
-  Object.values(week).forEach(empAssignments => {
-    Object.entries(empAssignments).forEach(([jobId, a]) => {
-      totals[jobId] = (totals[jobId] || 0) + (a.hours || 0);
+    Object.entries(totals).forEach(([jobId, hours]) => {
+      const job = data.jobs.find(j => j.id === jobId);
+      if (job) {
+        labels.push(job.name);
+        values.push(hours);
+      }
     });
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (labels.length === 0) return;
+
+    const width = canvas.width;
+    const height = canvas.height;
+    const max = Math.max(...values, 1);
+    const barWidth = 40;
+    const gap = 30;
+
+    labels.forEach((label, i) => {
+      const x = i * (barWidth + gap) + 40;
+      const barHeight = (values[i] / max) * (height - 60);
+
+      ctx.fillStyle = "#3b82f6";
+      ctx.fillRect(x, height - barHeight - 20, barWidth, barHeight);
+
+      ctx.fillStyle = "#000";
+      ctx.font = "11px Arial";
+      ctx.fillText(label, x, height - 5);
+    });
+  }
+
+  function renderAll() {
+    renderWeekLabel();
+    renderJobs();
+    renderEmployees();
+    setTimeout(renderProjectChart, 50);
+  }
+
+  // ---------- Data operations ----------
+  function addJob(name) {
+    if (!name.trim()) return;
+    data.jobs.push({
+      id: uuid(),
+      name: name.trim(),
+      category: document.getElementById('jobCategoryInput').value
+    });
+    renderJobs();
+  }
+
+  function removeJob(jobId) {
+    data.jobs = data.jobs.filter(j => j.id !== jobId);
+    Object.keys(data.assignments).forEach(weekKey => {
+      const week = data.assignments[weekKey];
+      Object.keys(week).forEach(empId => {
+        if (week[empId][jobId]) delete week[empId][jobId];
+      });
+    });
+    renderAll();
+  }
+
+  function addEmployee(name, weeklyBudget) {
+    if (!name.trim()) return;
+    const budget = parseFloat(weeklyBudget);
+    if (isNaN(budget) || budget <= 0) return;
+    data.employees.push({
+      id: uuid(),
+      name: name.trim(),
+      weeklyBudget: budget
+    });
+    renderEmployees();
+  }
+
+  function removeEmployee(empId) {
+    data.employees = data.employees.filter(e => e.id !== empId);
+    Object.keys(data.assignments).forEach(weekKey => {
+      const week = data.assignments[weekKey];
+      if (week[empId]) delete week[empId];
+    });
+    renderAll();
+  }
+
+  function addAssignment(weekKey, empId, jobId) {
+    const empAssignments = getEmployeeAssignmentsForWeek(weekKey, empId);
+    if (!empAssignments[jobId]) {
+      empAssignments[jobId] = { hours: 0, subtasks: [] };
+    }
+    renderEmployees();
+  }
+
+  function updateAssignmentHours(weekKey, empId, jobId, hours) {
+    const empAssignments = getEmployeeAssignmentsForWeek(weekKey, empId);
+    if (!empAssignments[jobId]) {
+      empAssignments[jobId] = { hours: 0, subtasks: [] };
+    }
+    empAssignments[jobId].hours = hours;
+    renderEmployees();
+  }
+
+  function removeAssignment(weekKey, empId, jobId) {
+    const empAssignments = getEmployeeAssignmentsForWeek(weekKey, empId);
+    if (empAssignments[jobId]) delete empAssignments[jobId];
+    renderEmployees();
+  }
+
+  // ---------- Week navigation ----------
+  document.getElementById('prevWeekBtn').addEventListener('click', () => {
+    data.currentWeekStart.setDate(data.currentWeekStart.getDate() - 7);
+    renderAll();
   });
 
-  const labels = [];
-  const values = [];
+  document.getElementById('nextWeekBtn').addEventListener('click', () => {
+    data.currentWeekStart.setDate(data.currentWeekStart.getDate() + 7);
+    renderAll();
+  });
 
-  Object.entries(totals).forEach(([jobId, hours]) => {
-    const job = data.jobs.find(j => j.id === jobId);
-    if (job) {
-      labels.push(job.name);
-      values.push(hours);
+  // ---------- Add job / employee ----------
+  document.getElementById('addJobBtn').addEventListener('click', () => {
+    const nameInput = document.getElementById('jobNameInput');
+    addJob(nameInput.value);
+    nameInput.value = '';
+  });
+
+  document.getElementById('jobNameInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      addJob(e.target.value);
+      e.target.value = '';
     }
   });
 
-  const canvas = document.getElementById('projectChart');
-  const width = canvas.width = canvas.clientWidth;
-  const height = canvas.height = canvas.clientHeight;
-
-  ctx.clearRect(0, 0, width, height);
-
-  if (labels.length === 0) return;
-
-  const max = Math.max(...values);
-  const barWidth = 40;
-  const gap = 30;
-
-  labels.forEach((label, i) => {
-    const x = i * (barWidth + gap) + 40;
-    const barHeight = (values[i] / max) * (height - 60);
-
-    ctx.fillStyle = "#3b82f6";
-    ctx.fillRect(x, height - barHeight - 20, barWidth, barHeight);
-
-    ctx.fillStyle = "#000";
-    ctx.fillText(label, x, height - 5);
-  });
-}
-
-function renderAll() {
-  renderWeekLabel();
-  renderJobs();
-  renderEmployees();
-  renderProjectChart();
-}
-
-/* ------------------ DATA OPERATIONS ------------------ */
-function addJob(name) {
-  if (!name.trim()) return;
-  data.jobs.push({
-    id: uuid(),
-    name: name.trim(),
-    category: document.getElementById('jobCategoryInput').value
-  });
-  renderJobs();
-}
-
-function removeJob(jobId) {
-  data.jobs = data.jobs.filter(j => j.id !== jobId);
-
-  // Remove job from all assignments
-  Object.keys(data.assignments).forEach(weekKey => {
-    const week = data.assignments[weekKey];
-    Object.keys(week).forEach(empId => {
-      if (week[empId][jobId]) {
-        delete week[empId][jobId];
-      }
-    });
-  });
-
-  renderAll();
-}
-
-function addEmployee(name, weeklyBudget) {
-  if (!name.trim()) return;
-  const budget = parseFloat(weeklyBudget);
-  if (isNaN(budget) || budget <= 0) return;
-
-  data.employees.push({
-    id: uuid(),
-    name: name.trim(),
-    weeklyBudget: budget
-  });
-
-  renderEmployees();
-}
-
-function removeEmployee(empId) {
-  data.employees = data.employees.filter(e => e.id !== empId);
-
-  // Remove all assignments for this employee
-  Object.keys(data.assignments).forEach(weekKey => {
-    const week = data.assignments[weekKey];
-    if (week[empId]) delete week[empId];
-  });
-
-  renderAll();
-}
-
-function addAssignment(weekKey, empId, jobId) {
-  const empAssignments = getEmployeeAssignmentsForWeek(weekKey, empId);
-  if (!empAssignments[jobId]) {
-    empAssignments[jobId] = { hours: 0, subtasks: [] };
-  }
-  renderEmployees();
-}
-
-function updateAssignmentHours(weekKey, empId, jobId, hours) {
-  const empAssignments = getEmployeeAssignmentsForWeek(weekKey, empId);
-  if (!empAssignments[jobId]) {
-    empAssignments[jobId] = { hours: 0, subtasks: [] };
-  }
-  empAssignments[jobId].hours = hours;
-  renderEmployees();
-}
-
-function removeAssignment(weekKey, empId, jobId) {
-  const empAssignments = getEmployeeAssignmentsForWeek(weekKey, empId);
-  if (empAssignments[jobId]) {
-    delete empAssignments[jobId];
-  }
-  renderEmployees();
-}
-  
-function reorderJob(dragId, targetId, category) {
-  const jobs = data.jobs.filter(j => j.category === category);
-  const dragIndex = jobs.findIndex(j => j.id === dragId);
-  const targetIndex = jobs.findIndex(j => j.id === targetId);
-
-  if (dragIndex === -1 || targetIndex === -1) return;
-
-  const [moved] = jobs.splice(dragIndex, 1);
-  jobs.splice(targetIndex, 0, moved);
-
-  // Rebuild job list preserving other categories
-  data.jobs = [
-    ...data.jobs.filter(j => j.category !== category),
-    ...jobs
-  ];
-
-  renderJobs();
-}
-
-/* ------------------ WEEK NAVIGATION ------------------ */
-document.getElementById('prevWeekBtn').addEventListener('click', () => {
-  data.currentWeekStart.setDate(data.currentWeekStart.getDate() - 7);
-  renderAll();
-});
-
-document.getElementById('nextWeekBtn').addEventListener('click', () => {
-  data.currentWeekStart.setDate(data.currentWeekStart.getDate() + 7);
-  renderAll();
-});
-
-/* ------------------ ADD JOB / EMPLOYEE ------------------ */
-document.getElementById('addJobBtn').addEventListener('click', () => {
-  const nameInput = document.getElementById('jobNameInput');
-  addJob(nameInput.value);
-  nameInput.value = '';
-});
-
-document.getElementById('jobNameInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') {
-    addJob(e.target.value);
-    e.target.value = '';
-  }
-});
-
-document.getElementById('addEmployeeBtn').addEventListener('click', () => {
-  const nameInput = document.getElementById('employeeNameInput');
-  const budgetInput = document.getElementById('employeeBudgetInput');
-  addEmployee(nameInput.value, budgetInput.value);
-  nameInput.value = '';
-  budgetInput.value = '';
-});
-
-document.getElementById('employeeNameInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') {
+  document.getElementById('addEmployeeBtn').addEventListener('click', () => {
     const nameInput = document.getElementById('employeeNameInput');
     const budgetInput = document.getElementById('employeeBudgetInput');
     addEmployee(nameInput.value, budgetInput.value);
     nameInput.value = '';
     budgetInput.value = '';
-  }
-});
+  });
 
-/* ------------------ EXPORT CSV ------------------ */
-document.getElementById('exportCsvBtn').addEventListener('click', () => {
-  const weekKey = getCurrentWeekKey();
-  const weekAssignments = getAssignmentsForWeek(weekKey);
-
-  const rows = [];
-  rows.push(['Week', 'Employee', 'Job', 'Hours', 'EmployeeBudget', 'TotalAllocatedForEmployee']);
-
-  data.employees.forEach(emp => {
-    const empAssignments = weekAssignments[emp.id] || {};
-    const total = totalHoursForEmployeeWeek(weekKey, emp.id);
-    const jobIds = Object.keys(empAssignments);
-
-    if (jobIds.length === 0) {
-      rows.push([weekKey, emp.name, '', '', emp.weeklyBudget, total]);
-    } else {
-      jobIds.forEach(jobId => {
-        const job = data.jobs.find(j => j.id === jobId);
-        const jobName = job ? job.name : '(deleted job)';
-        const hours = empAssignments[jobId].hours || 0;
-        rows.push([weekKey, emp.name, jobName, hours, emp.weeklyBudget, total]);
-      });
+  document.getElementById('employeeNameInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const nameInput = document.getElementById('employeeNameInput');
+      const budgetInput = document.getElementById('employeeBudgetInput');
+      addEmployee(nameInput.value, budgetInput.value);
+      nameInput.value = '';
+      budgetInput.value = '';
     }
   });
 
-  const csvContent = rows
-    .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
-    .join('\r\n');
+  // ---------- Export CSV ----------
+  document.getElementById('exportCsvBtn').addEventListener('click', () => {
+    const weekKey = getCurrentWeekKey();
+    const weekAssignments = getAssignmentsForWeek(weekKey);
 
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `week_${weekKey}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-});
+    const rows = [];
+    rows.push(['Week', 'Employee', 'Job', 'Hours', 'EmployeeBudget', 'TotalAllocatedForEmployee']);
 
-/* ------------------ EXPORT / IMPORT JSON ------------------ */
-document.getElementById('exportJsonBtn').addEventListener('click', () => {
-  const exportData = {
-    employees: data.employees,
-    jobs: data.jobs,
-    assignments: data.assignments,
-    currentWeekStart: data.currentWeekStart.toISOString()
-  };
+    data.employees.forEach(emp => {
+      const empAssignments = weekAssignments[emp.id] || {};
+      const total = totalHoursForEmployeeWeek(weekKey, emp.id);
+      const jobIds = Object.keys(empAssignments);
 
-  const jsonStr = JSON.stringify(exportData, null, 2);
-  const blob = new Blob([jsonStr], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'planner_data.json';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-});
-
-document.getElementById('importJsonInput').addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = evt => {
-    try {
-      const imported = JSON.parse(evt.target.result);
-
-      if (!imported.employees || !imported.jobs || !imported.assignments) {
-        alert('Invalid JSON format.');
-        return;
+      if (jobIds.length === 0) {
+        rows.push([weekKey, emp.name, '', '', emp.weeklyBudget, total]);
+      } else {
+        jobIds.forEach(jobId => {
+          const job = data.jobs.find(j => j.id === jobId);
+          const jobName = job ? job.name : '(deleted job)';
+          let hours = empAssignments[jobId].hours || 0;
+          (empAssignments[jobId].subtasks || []).forEach(sub => {
+            hours += (sub.hours || 0);
+          });
+          rows.push([weekKey, emp.name, jobName, hours, emp.weeklyBudget, total]);
+        });
       }
+    });
 
-      data.employees = imported.employees;
-      data.jobs = imported.jobs;
-      data.assignments = imported.assignments;
-      data.currentWeekStart = imported.currentWeekStart
-        ? new Date(imported.currentWeekStart)
-        : startOfWeek(new Date());
+    const csvContent = rows
+      .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
+      .join('\r\n');
 
-      renderAll();
-    } catch (err) {
-      console.error(err);
-      alert('Failed to parse JSON.');
-    }
-  };
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `week_${weekKey}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
 
-  reader.readAsText(file);
-  e.target.value = '';
-});
+  // ---------- Export / Import JSON ----------
+  document.getElementById('exportJsonBtn').addEventListener('click', () => {
+    const exportData = {
+      employees: data.employees,
+      jobs: data.jobs,
+      assignments: data.assignments,
+      currentWeekStart: data.currentWeekStart.toISOString()
+    };
 
-/* ------------------ INITIAL RENDER ------------------ */
-renderAll();
+    const jsonStr = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'planner_data.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById('importJsonInput').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = evt => {
+      try {
+        const imported = JSON.parse(evt.target.result);
+        if (!imported.employees || !imported.jobs || !imported.assignments) {
+          alert('Invalid JSON format.');
+          return;
+        }
+        data.employees = imported.employees;
+        data.jobs = imported.jobs;
+        data.assignments = imported.assignments;
+        data.currentWeekStart = imported.currentWeekStart
+          ? new Date(imported.currentWeekStart)
+          : startOfWeek(new Date());
+        renderAll();
+      } catch (err) {
+        console.error(err);
+        alert('Failed to parse JSON.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  // ---------- Initial render ----------
+  renderAll();
 </script>
-
 </body>
 </html>
