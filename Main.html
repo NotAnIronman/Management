@@ -1,1 +1,696 @@
-Filler
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Weekly Work Delegation Planner</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      height: 100vh;
+      box-sizing: border-box;
+    }
+
+    header {
+      padding: 10px 15px;
+      background: #1f2933;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    .week-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .week-controls button {
+      padding: 4px 8px;
+      cursor: pointer;
+    }
+
+    .container {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .column {
+      padding: 10px;
+      box-sizing: border-box;
+      overflow-y: auto;
+    }
+
+    .jobs-column {
+      width: 25%;
+      border-right: 1px solid #ddd;
+      background: #f9fafb;
+    }
+
+    .employees-column {
+      flex: 1;
+      background: #ffffff;
+    }
+
+    h2 {
+      margin-top: 0;
+      font-size: 16px;
+    }
+
+    .list {
+      margin-top: 10px;
+    }
+
+    .item {
+      background: #ffffff;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 6px 8px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: grab;
+    }
+
+    .item.dragging {
+      opacity: 0.5;
+    }
+
+    .item span {
+      flex: 1;
+    }
+
+    .item button {
+      margin-left: 6px;
+      padding: 2px 6px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .form-inline {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .form-inline input {
+      padding: 4px 6px;
+      font-size: 12px;
+    }
+
+    .form-inline button {
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .employee-card {
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 8px;
+      margin-bottom: 10px;
+      background: #f8fafc;
+    }
+
+    .employee-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    .employee-name {
+      font-weight: bold;
+    }
+
+    .employee-budget {
+      font-size: 12px;
+      color: #555;
+    }
+
+    .gauge {
+      position: relative;
+      height: 12px;
+      background: #e5e7eb;
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 6px;
+    }
+
+    .gauge-fill {
+      height: 100%;
+      background: #3b82f6;
+      transition: width 0.2s ease;
+    }
+
+    .gauge-label {
+      font-size: 11px;
+      color: #444;
+      margin-bottom: 6px;
+    }
+
+    .employee-dropzone {
+      min-height: 40px;
+      border: 1px dashed #cbd5e1;
+      border-radius: 4px;
+      padding: 4px;
+      background: #f9fafb;
+    }
+
+    .employee-dropzone.over {
+      background: #e0f2fe;
+      border-color: #38bdf8;
+    }
+
+    .assignment {
+      background: #ffffff;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      padding: 4px 6px;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+    }
+
+    .assignment input[type="number"] {
+      width: 60px;
+      padding: 2px 4px;
+      font-size: 11px;
+    }
+
+    .assignment button {
+      padding: 2px 4px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .toolbar button {
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .toolbar input[type="file"] {
+      font-size: 11px;
+    }
+
+    @media (max-width: 900px) {
+      body {
+        flex-direction: column;
+      }
+      .container {
+        flex-direction: column;
+      }
+      .jobs-column {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #ddd;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Weekly Work Delegation Planner</h1>
+    <div class="week-controls">
+      <button id="prevWeekBtn">&lt; Prev</button>
+      <span id="weekLabel"></span>
+      <button id="nextWeekBtn">Next &gt;</button>
+    </div>
+    <div class="toolbar">
+      <button id="exportCsvBtn">Export to CSV</button>
+      <button id="exportJsonBtn">Export JSON</button>
+      <label>
+        Import JSON
+        <input type="file" id="importJsonInput" accept=".json" />
+      </label>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Jobs column -->
+    <div class="column jobs-column">
+      <h2>Jobs</h2>
+      <div class="form-inline">
+        <input type="text" id="jobNameInput" placeholder="Job name" />
+        <button id="addJobBtn">Add Job</button>
+      </div>
+      <div id="jobsList" class="list"></div>
+    </div>
+
+    <!-- Employees column -->
+    <div class="column employees-column">
+      <h2>Employees</h2>
+      <div class="form-inline">
+        <input type="text" id="employeeNameInput" placeholder="Employee name" />
+        <input type="number" id="employeeBudgetInput" placeholder="Weekly hours" min="1" />
+        <button id="addEmployeeBtn">Add Employee</button>
+      </div>
+      <div id="employeesList" class="list"></div>
+    </div>
+  </div>
+
+  <script>
+    // --- Data model ---------------------------------------------------------
+    let data = {
+      employees: [], // {id, name, weeklyBudget}
+      jobs: [],      // {id, name}
+      assignments: {}, // { weekKey: { employeeId: { jobId: { hours } } } }
+      currentWeekStart: startOfWeek(new Date()) // Monday-based
+    };
+
+    // --- Utility functions --------------------------------------------------
+    function uuid() {
+      return 'xxxx-4xxx-yxxx-xxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
+
+    function startOfWeek(date) {
+      const d = new Date(date);
+      const day = d.getDay(); // 0 (Sun) - 6 (Sat)
+      const diff = (day === 0 ? -6 : 1) - day; // make Monday start
+      d.setDate(d.getDate() + diff);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    }
+
+    function formatDate(d) {
+      return d.toISOString().slice(0, 10);
+    }
+
+    function getWeekKey(date) {
+      return formatDate(startOfWeek(date));
+    }
+
+    function getCurrentWeekKey() {
+      return getWeekKey(data.currentWeekStart);
+    }
+
+    function getAssignmentsForWeek(weekKey) {
+      if (!data.assignments[weekKey]) {
+        data.assignments[weekKey] = {};
+      }
+      return data.assignments[weekKey];
+    }
+
+    function getEmployeeAssignmentsForWeek(weekKey, employeeId) {
+      const week = getAssignmentsForWeek(weekKey);
+      if (!week[employeeId]) {
+        week[employeeId] = {};
+      }
+      return week[employeeId];
+    }
+
+    function totalHoursForEmployeeWeek(weekKey, employeeId) {
+      const empAssignments = getEmployeeAssignmentsForWeek(weekKey, employeeId);
+      return Object.values(empAssignments).reduce((sum, a) => sum + (a.hours || 0), 0);
+    }
+
+    // --- Rendering ----------------------------------------------------------
+    const weekLabelEl = document.getElementById('weekLabel');
+    const jobsListEl = document.getElementById('jobsList');
+    const employeesListEl = document.getElementById('employeesList');
+
+    function renderWeekLabel() {
+      const start = data.currentWeekStart;
+      const end = new Date(start);
+      end.setDate(start.getDate() + 6);
+      weekLabelEl.textContent = `${formatDate(start)} to ${formatDate(end)}`;
+    }
+
+    function renderJobs() {
+      jobsListEl.innerHTML = '';
+      data.jobs.forEach(job => {
+        const div = document.createElement('div');
+        div.className = 'item';
+        div.draggable = true;
+        div.dataset.jobId = job.id;
+
+        const span = document.createElement('span');
+        span.textContent = job.name;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.textContent = 'X';
+        removeBtn.title = 'Remove job';
+        removeBtn.addEventListener('click', () => {
+          removeJob(job.id);
+        });
+
+        div.appendChild(span);
+        div.appendChild(removeBtn);
+
+        // Drag events
+        div.addEventListener('dragstart', (e) => {
+          div.classList.add('dragging');
+          e.dataTransfer.setData('text/plain', job.id);
+        });
+        div.addEventListener('dragend', () => {
+          div.classList.remove('dragging');
+        });
+
+        jobsListEl.appendChild(div);
+      });
+    }
+
+    function renderEmployees() {
+      employeesListEl.innerHTML = '';
+      const weekKey = getCurrentWeekKey();
+
+      data.employees.forEach(emp => {
+        const card = document.createElement('div');
+        card.className = 'employee-card';
+
+        const header = document.createElement('div');
+        header.className = 'employee-header';
+
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'employee-name';
+        nameSpan.textContent = emp.name;
+
+        const budgetSpan = document.createElement('span');
+        budgetSpan.className = 'employee-budget';
+        const total = totalHoursForEmployeeWeek(weekKey, emp.id);
+        budgetSpan.textContent = `Allocated: ${total}/${emp.weeklyBudget} hrs`;
+
+        const removeBtn = document.createElement('button');
+        removeBtn.textContent = 'Remove';
+        removeBtn.addEventListener('click', () => {
+          removeEmployee(emp.id);
+        });
+
+        header.appendChild(nameSpan);
+        header.appendChild(budgetSpan);
+        header.appendChild(removeBtn);
+
+        // Gauge
+        const gaugeLabel = document.createElement('div');
+        gaugeLabel.className = 'gauge-label';
+        const pct = emp.weeklyBudget > 0 ? Math.min(100, Math.round((total / emp.weeklyBudget) * 100)) : 0;
+        gaugeLabel.textContent = `Usage: ${pct}%`;
+
+        const gauge = document.createElement('div');
+        gauge.className = 'gauge';
+        const gaugeFill = document.createElement('div');
+        gaugeFill.className = 'gauge-fill';
+        gaugeFill.style.width = pct + '%';
+        gauge.appendChild(gaugeFill);
+
+        // Dropzone
+        const dropzone = document.createElement('div');
+        dropzone.className = 'employee-dropzone';
+        dropzone.dataset.employeeId = emp.id;
+
+        // Drag-over handling
+        dropzone.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          dropzone.classList.add('over');
+        });
+        dropzone.addEventListener('dragleave', () => {
+          dropzone.classList.remove('over');
+        });
+        dropzone.addEventListener('drop', (e) => {
+          e.preventDefault();
+          dropzone.classList.remove('over');
+          const jobId = e.dataTransfer.getData('text/plain');
+          if (jobId) {
+            addAssignment(weekKey, emp.id, jobId);
+          }
+        });
+
+        // Existing assignments
+        const empAssignments = getEmployeeAssignmentsForWeek(weekKey, emp.id);
+        Object.keys(empAssignments).forEach(jobId => {
+          const job = data.jobs.find(j => j.id === jobId);
+          if (!job) return;
+          const assignment = empAssignments[jobId];
+
+          const row = document.createElement('div');
+          row.className = 'assignment';
+
+          const label = document.createElement('span');
+          label.textContent = job.name;
+
+          const hoursInput = document.createElement('input');
+          hoursInput.type = 'number';
+          hoursInput.min = '0';
+          hoursInput.step = '0.25';
+          hoursInput.value = assignment.hours || 0;
+          hoursInput.addEventListener('change', () => {
+            const val = parseFloat(hoursInput.value) || 0;
+            updateAssignmentHours(weekKey, emp.id, jobId, val);
+          });
+
+          const removeAssignBtn = document.createElement('button');
+          removeAssignBtn.textContent = 'X';
+          removeAssignBtn.title = 'Remove assignment';
+          removeAssignBtn.addEventListener('click', () => {
+            removeAssignment(weekKey, emp.id, jobId);
+          });
+
+          row.appendChild(label);
+          row.appendChild(hoursInput);
+          row.appendChild(removeAssignBtn);
+
+          dropzone.appendChild(row);
+        });
+
+        card.appendChild(header);
+        card.appendChild(gaugeLabel);
+        card.appendChild(gauge);
+        card.appendChild(dropzone);
+
+        employeesListEl.appendChild(card);
+      });
+    }
+
+    function renderAll() {
+      renderWeekLabel();
+      renderJobs();
+      renderEmployees();
+    }
+
+    // --- Data operations ----------------------------------------------------
+    function addJob(name) {
+      if (!name.trim()) return;
+      data.jobs.push({ id: uuid(), name: name.trim() });
+      renderJobs();
+    }
+
+    function removeJob(jobId) {
+      data.jobs = data.jobs.filter(j => j.id !== jobId);
+      // Remove from assignments
+      Object.keys(data.assignments).forEach(weekKey => {
+        const week = data.assignments[weekKey];
+        Object.keys(week).forEach(empId => {
+          const empAssignments = week[empId];
+          if (empAssignments[jobId]) {
+            delete empAssignments[jobId];
+          }
+        });
+      });
+      renderAll();
+    }
+
+    function addEmployee(name, weeklyBudget) {
+      if (!name.trim()) return;
+      const budget = parseFloat(weeklyBudget);
+      if (isNaN(budget) || budget <= 0) return;
+      data.employees.push({ id: uuid(), name: name.trim(), weeklyBudget: budget });
+      renderEmployees();
+    }
+
+    function removeEmployee(empId) {
+      data.employees = data.employees.filter(e => e.id !== empId);
+      // Remove assignments
+      Object.keys(data.assignments).forEach(weekKey => {
+        const week = data.assignments[weekKey];
+        if (week[empId]) {
+          delete week[empId];
+        }
+      });
+      renderAll();
+    }
+
+    function addAssignment(weekKey, empId, jobId) {
+      const empAssignments = getEmployeeAssignmentsForWeek(weekKey, empId);
+      if (!empAssignments[jobId]) {
+        empAssignments[jobId] = { hours: 0 };
+      }
+      renderEmployees();
+    }
+
+    function updateAssignmentHours(weekKey, empId, jobId, hours) {
+      const empAssignments = getEmployeeAssignmentsForWeek(weekKey, empId);
+      if (!empAssignments[jobId]) {
+        empAssignments[jobId] = { hours: 0 };
+      }
+      empAssignments[jobId].hours = hours;
+      renderEmployees();
+    }
+
+    function removeAssignment(weekKey, empId, jobId) {
+      const empAssignments = getEmployeeAssignmentsForWeek(weekKey, empId);
+      if (empAssignments[jobId]) {
+        delete empAssignments[jobId];
+      }
+      renderEmployees();
+    }
+
+    // --- Week navigation ----------------------------------------------------
+    document.getElementById('prevWeekBtn').addEventListener('click', () => {
+      data.currentWeekStart.setDate(data.currentWeekStart.getDate() - 7);
+      renderAll();
+    });
+
+    document.getElementById('nextWeekBtn').addEventListener('click', () => {
+      data.currentWeekStart.setDate(data.currentWeekStart.getDate() + 7);
+      renderAll();
+    });
+
+    // --- Add job / employee handlers ---------------------------------------
+    document.getElementById('addJobBtn').addEventListener('click', () => {
+      const input = document.getElementById('jobNameInput');
+      addJob(input.value);
+      input.value = '';
+    });
+
+    document.getElementById('jobNameInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        addJob(e.target.value);
+        e.target.value = '';
+      }
+    });
+
+    document.getElementById('addEmployeeBtn').addEventListener('click', () => {
+      const nameInput = document.getElementById('employeeNameInput');
+      const budgetInput = document.getElementById('employeeBudgetInput');
+      addEmployee(nameInput.value, budgetInput.value);
+      nameInput.value = '';
+      budgetInput.value = '';
+    });
+
+    document.getElementById('employeeNameInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const nameInput = document.getElementById('employeeNameInput');
+        const budgetInput = document.getElementById('employeeBudgetInput');
+        addEmployee(nameInput.value, budgetInput.value);
+        nameInput.value = '';
+        budgetInput.value = '';
+      }
+    });
+
+    // --- Export to CSV (Excel-friendly) ------------------------------------
+    document.getElementById('exportCsvBtn').addEventListener('click', () => {
+      const weekKey = getCurrentWeekKey();
+      const weekAssignments = getAssignmentsForWeek(weekKey);
+
+      // CSV columns: Week, Employee, Job, Hours, EmployeeBudget, TotalAllocatedForEmployee
+      const rows = [];
+      rows.push(['Week', 'Employee', 'Job', 'Hours', 'EmployeeBudget', 'TotalAllocatedForEmployee']);
+
+      data.employees.forEach(emp => {
+        const empAssignments = weekAssignments[emp.id] || {};
+        const total = totalHoursForEmployeeWeek(weekKey, emp.id);
+        const jobIds = Object.keys(empAssignments);
+        if (jobIds.length === 0) {
+          rows.push([weekKey, emp.name, '', '', emp.weeklyBudget, total]);
+        } else {
+          jobIds.forEach(jobId => {
+            const job = data.jobs.find(j => j.id === jobId);
+            const jobName = job ? job.name : '(deleted job)';
+            const hours = empAssignments[jobId].hours || 0;
+            rows.push([weekKey, emp.name, jobName, hours, emp.weeklyBudget, total]);
+          });
+        }
+      });
+
+      const csvContent = rows.map(r =>
+        r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
+      ).join('\r\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `week_${weekKey}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    // --- Export / Import JSON ----------------------------------------------
+    document.getElementById('exportJsonBtn').addEventListener('click', () => {
+      const exportData = {
+        employees: data.employees,
+        jobs: data.jobs,
+        assignments: data.assignments,
+        currentWeekStart: data.currentWeekStart.toISOString()
+      };
+      const jsonStr = JSON.stringify(exportData, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'planner_data.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById('importJsonInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (evt) => {
+        try {
+          const imported = JSON.parse(evt.target.result);
+          if (!imported.employees || !imported.jobs || !imported.assignments) {
+            alert('Invalid JSON format.');
+            return;
+          }
+          data.employees = imported.employees;
+          data.jobs = imported.jobs;
+          data.assignments = imported.assignments;
+          data.currentWeekStart = imported.currentWeekStart
+            ? new Date(imported.currentWeekStart)
+            : startOfWeek(new Date());
+          renderAll();
+        } catch (err) {
+          console.error(err);
+          alert('Failed to parse JSON.');
+        }
+      };
+      reader.readAsText(file);
+      // reset input so same file can be chosen again if needed
+      e.target.value = '';
+    });
+
+    // --- Initial render -----------------------------------------------------
+    renderAll();
+  </script>
+</body>
+</html>
