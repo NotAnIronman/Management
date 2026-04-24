@@ -11,7 +11,7 @@
 
 // ---------- Constants ----------
 
-const DEFAULT_COLOR = '#3b82f6';
+const DEFAULT_COLOR = '#03bafc';
 const DEFAULT_DISTRICT = 'Electrical';
 
 // ---------- Basic helpers for dates and IDs ----------
