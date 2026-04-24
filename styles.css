@@ -1,0 +1,482 @@
+/* -----------------------------------------------------------
+   GLOBAL LAYOUT & PAGE STRUCTURE
+   -----------------------------------------------------------
+   These rules define the overall page layout, fonts, spacing,
+   and how the three main columns (chart, jobs, employees) sit
+   next to each other.
+----------------------------------------------------------- */
+
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  box-sizing: border-box;
+}
+
+header {
+  padding: 10px 15px;
+  background: #1f2933;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.week-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.week-controls button {
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.container {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* -----------------------------------------------------------
+   COLUMN SIZING
+   -----------------------------------------------------------
+   Chart = 50%
+   Jobs = 20%
+   Employees = 30%
+----------------------------------------------------------- */
+
+.chart-column {
+  width: 50%;
+  padding: 10px;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-right: 1px solid #ddd;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.jobs-column {
+  width: 20%;
+  padding: 10px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  border-right: 1px solid #ddd;
+  background: #f9fafb;
+}
+
+.employees-column {
+  width: 30%;
+  padding: 10px;
+  box-sizing: border-box;
+  overflow-y: auto;
+  background: #ffffff;
+}
+
+/* -----------------------------------------------------------
+   RESIZABLE DIVIDERS
+   -----------------------------------------------------------
+   These allow the user to drag the vertical bars to resize
+   the three main columns.
+----------------------------------------------------------- */
+
+.divider {
+  width: 5px;
+  background: #cbd5e1;
+  cursor: col-resize;
+}
+
+.divider:hover {
+  background: #94a3b8;
+}
+
+/* -----------------------------------------------------------
+   HEADERS & TITLES
+----------------------------------------------------------- */
+
+h2 {
+  margin-top: 0;
+  font-size: 16px;
+}
+
+.chart-header-line {
+  font-size: 13px;
+  font-weight: bold;
+}
+
+/* -----------------------------------------------------------
+   CHART LEGEND
+----------------------------------------------------------- */
+
+.chart-legend {
+  font-size: 11px;
+  max-height: 80px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  padding: 4px;
+  border-radius: 4px;
+  background: #f9fafb;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.legend-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  border: 1px solid #cbd5e1;
+}
+
+/* -----------------------------------------------------------
+   JOB LIST STYLING
+----------------------------------------------------------- */
+
+.item {
+  background: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 6px 8px;
+  margin-bottom: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: grab;
+}
+
+.item-header-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.item-header-row span {
+  flex: 1;
+}
+
+.item-header-row button {
+  margin-left: 4px;
+  padding: 2px 6px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+/* Collapsed job hides only the subtasks */
+.item.collapsed .job-subtasks {
+  display: none;
+}
+
+/* -----------------------------------------------------------
+   JOB SUBTASK SECTIONS
+----------------------------------------------------------- */
+
+.job-subtasks {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed #e5e7eb;
+  font-size: 11px;
+}
+
+.job-subtask-category-header {
+  font-weight: bold;
+  margin-top: 4px;
+  cursor: pointer;
+}
+
+.job-subtask-category.collapsed .job-subtask-items {
+  display: none;
+}
+
+.job-subtask-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.job-subtask-row span {
+  flex: 1;
+}
+
+.job-subtask-row input[type="color"] {
+  width: 30px;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.job-subtask-add {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  flex-wrap: wrap;
+}
+
+.job-subtask-add input,
+.job-subtask-add select {
+  font-size: 11px;
+  padding: 2px 4px;
+}
+
+.job-subtask-add button {
+  font-size: 11px;
+  padding: 2px 6px;
+  cursor: pointer;
+}
+
+/* -----------------------------------------------------------
+   EMPLOYEE CARDS
+----------------------------------------------------------- */
+
+.employee-card {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 10px;
+  background: #f8fafc;
+}
+
+.employee-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  gap: 6px;
+}
+
+.employee-name {
+  font-weight: bold;
+}
+
+.employee-budget {
+  font-size: 12px;
+  color: #555;
+}
+
+.employee-district {
+  font-size: 11px;
+  color: #6b7280;
+}
+
+.employee-district select {
+  font-size: 11px;
+  padding: 2px 4px;
+}
+
+/* Collapsed employee hides assignments */
+.employee-card.collapsed .employee-dropzone,
+.employee-card.collapsed .gauge,
+.employee-card.collapsed .gauge-label {
+  display: none;
+}
+
+/* -----------------------------------------------------------
+   EMPLOYEE GAUGE BAR
+----------------------------------------------------------- */
+
+.gauge {
+  position: relative;
+  height: 12px;
+  background: #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.gauge.over-budget {
+  box-shadow: 0 0 0 2px #ef4444 inset;
+}
+
+.gauge-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.gauge-label {
+  font-size: 11px;
+  color: #444;
+  margin-bottom: 6px;
+}
+
+/* -----------------------------------------------------------
+   EMPLOYEE DROPZONE & ASSIGNMENTS
+----------------------------------------------------------- */
+
+.employee-dropzone {
+  min-height: 40px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 4px;
+  padding: 4px;
+  background: #f9fafb;
+}
+
+.employee-dropzone.over {
+  background: #e0f2fe;
+  border-color: #38bdf8;
+}
+
+.assignment {
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  padding: 4px 6px;
+  margin-bottom: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.assignment-top {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.assignment input[type="number"] {
+  width: 60px;
+  padding: 2px 4px;
+  font-size: 11px;
+}
+
+.assignment button {
+  padding: 2px 4px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+/* Subtask rows inside employee cards */
+.subtask-list {
+  margin-left: 10px;
+  margin-top: 4px;
+}
+
+.subtask-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  background: #eef2ff;
+  padding: 2px 4px;
+  margin-bottom: 2px;
+  border-radius: 3px;
+}
+
+.subtask-row input[type="number"] {
+  width: 50px;
+  font-size: 11px;
+}
+
+.subtask-row input[type="color"] {
+  width: 30px;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+/* -----------------------------------------------------------
+   DISTRICT HEADERS
+----------------------------------------------------------- */
+
+.district-header {
+  font-weight: bold;
+  margin-top: 10px;
+  margin-bottom: 4px;
+  padding: 4px 6px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+/* -----------------------------------------------------------
+   FOOTER TOOLBAR
+----------------------------------------------------------- */
+
+footer.toolbar-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #1f2933;
+  padding: 10px;
+  display: flex;
+  justify-content: center;
+  border-top: 1px solid #444;
+  z-index: 10;
+}
+
+footer .toolbar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  color: #000;
+}
+
+footer .toolbar button {
+  color: #000;
+  background: #e5e7eb;
+  border: 1px solid #9ca3af;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+footer .toolbar label {
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+footer .toolbar input[type="file"] {
+  color: #fff;
+  font-size: 11px;
+  margin-left: 6px;
+}
+
+/* -----------------------------------------------------------
+   CHART CANVAS
+----------------------------------------------------------- */
+
+#projectChart {
+  width: 100%;
+  height: 260px;
+  background: #fff;
+  border: 1px solid #ddd;
+  display: block;
+}
+
+/* -----------------------------------------------------------
+   RESPONSIVE BEHAVIOR
+----------------------------------------------------------- */
+
+@media (max-width: 1000px) {
+  .container {
+    flex-direction: column;
+  }
+  .chart-column,
+  .jobs-column,
+  .employees-column {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #ddd;
+  }
+  .divider {
+    display: none;
+  }
+}
