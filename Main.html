@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Estimation Management Planner V1</title>
+  <title>Weekly Work Delegation Planner</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -49,9 +49,41 @@
       width: 50%;
       padding: 10px;
       box-sizing: border-box;
-      overflow-y: auto;
+      overflow: hidden;
       border-right: 1px solid #ddd;
       background: #ffffff;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .chart-header-line {
+      font-size: 13px;
+      font-weight: bold;
+    }
+
+    .chart-legend {
+      font-size: 11px;
+      max-height: 80px;
+      overflow-y: auto;
+      border: 1px solid #e5e7eb;
+      padding: 4px;
+      border-radius: 4px;
+      background: #f9fafb;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 2px;
+    }
+
+    .legend-color {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      border: 1px solid #cbd5e1;
     }
 
     .jobs-column {
@@ -100,6 +132,7 @@
       align-items: center;
       justify-content: space-between;
       cursor: grab;
+      gap: 4px;
     }
 
     .item span {
@@ -107,7 +140,7 @@
     }
 
     .item button {
-      margin-left: 6px;
+      margin-left: 4px;
       padding: 2px 6px;
       font-size: 11px;
       cursor: pointer;
@@ -279,7 +312,7 @@
 
     #projectChart {
       width: 100%;
-      height: 300px;
+      height: 260px;
       background: #fff;
       border: 1px solid #ddd;
       display: block;
@@ -333,7 +366,9 @@
   <!-- Chart column -->
   <div class="chart-column">
     <h2>Project Allocation</h2>
+    <div id="chartHeaderLine" class="chart-header-line"></div>
     <canvas id="projectChart"></canvas>
+    <div id="chartLegend" class="chart-legend"></div>
   </div>
 
   <div class="divider" id="divider1"></div>
@@ -348,6 +383,7 @@
         <option>Upcoming</option>
         <option>Complete</option>
       </select>
+      <input type="color" id="jobColorInput" value="#3b82f6" title="Job color" />
       <button id="addJobBtn">Add Job</button>
     </div>
     <div id="jobsList"></div>
@@ -437,6 +473,12 @@
     return sum;
   }
 
+  function totalHoursAllEmployees(weekKey) {
+    return data.employees.reduce((sum, emp) => {
+      return sum + totalHoursForEmployeeWeek(weekKey, emp.id);
+    }, 0);
+  }
+
   function forceChartUpdate() {
     setTimeout(renderProjectChart, 30);
   }
@@ -445,6 +487,8 @@
   const weekLabelEl = document.getElementById('weekLabel');
   const jobsListEl = document.getElementById('jobsList');
   const employeesListEl = document.getElementById('employeesList');
+  const chartHeaderLineEl = document.getElementById('chartHeaderLine');
+  const chartLegendEl = document.getElementById('chartLegend');
 
   function renderWeekLabel() {
     const start = data.currentWeekStart;
@@ -479,8 +523,21 @@
         div.draggable = true;
         div.dataset.jobId = job.id;
 
+        const colorBox = document.createElement('div');
+        colorBox.className = 'legend-color';
+        colorBox.style.background = job.color || '#3b82f6';
+
         const span = document.createElement('span');
         span.textContent = job.name;
+
+        const colorInput = document.createElement('input');
+        colorInput.type = 'color';
+        colorInput.value = job.color || '#3b82f6';
+        colorInput.onchange = () => {
+          job.color = colorInput.value;
+          renderJobs();
+          forceChartUpdate();
+        };
 
         const categorySelect = document.createElement('select');
         ["Active", "Upcoming", "Complete"].forEach(c => {
@@ -502,7 +559,9 @@
           removeJob(job.id);
         };
 
+        div.appendChild(colorBox);
         div.appendChild(span);
+        div.appendChild(colorInput);
         div.appendChild(categorySelect);
         div.appendChild(removeBtn);
 
@@ -590,54 +649,55 @@
 
       const empAssignments = getEmployeeAssignmentsForWeek(weekKey, emp.id);
 
+      const totalHours = total || 1; // avoid divide by zero
       let offset = 0;
+
       Object.entries(empAssignments).forEach(([jobId, a]) => {
         const parentHours = a.hours || 0;
-        const parentPct = emp.weeklyBudget > 0 ? (parentHours / emp.weeklyBudget) * 100 : 0;
+        if (parentHours <= 0) return;
+
+        const job = data.jobs.find(j => j.id === jobId);
+        const baseColor = job && job.color ? job.color : '#3b82f6';
+
+        const parentPctOfTotal = (parentHours / totalHours) * 100;
 
         if (!a.subtasks || a.subtasks.length === 0) {
-          if (parentPct > 0) {
-            const fill = document.createElement('div');
-            fill.className = 'gauge-fill';
-            fill.style.left = offset + '%';
-            fill.style.width = parentPct + '%';
-            fill.style.background = '#3b82f6';
-            gauge.appendChild(fill);
-            offset += parentPct;
-          }
+          const fill = document.createElement('div');
+          fill.className = 'gauge-fill';
+          fill.style.left = offset + '%';
+          fill.style.width = parentPctOfTotal + '%';
+          fill.style.background = baseColor;
+          gauge.appendChild(fill);
+          offset += parentPctOfTotal;
           return;
         }
 
         const totalSubHours = a.subtasks.reduce((s, sub) => s + (sub.hours || 0), 0);
-        const scale = (totalSubHours > 0 && parentHours > 0) ? (parentHours / totalSubHours) : 0;
 
-        if (scale === 0) {
-          if (parentPct > 0) {
-            const fill = document.createElement('div');
-            fill.className = 'gauge-fill';
-            fill.style.left = offset + '%';
-            fill.style.width = parentPct + '%';
-            fill.style.background = '#3b82f6';
-            gauge.appendChild(fill);
-            offset += parentPct;
-          }
+        if (totalSubHours <= 0) {
+          const fill = document.createElement('div');
+          fill.className = 'gauge-fill';
+          fill.style.left = offset + '%';
+          fill.style.width = parentPctOfTotal + '%';
+          fill.style.background = baseColor;
+          gauge.appendChild(fill);
+          offset += parentPctOfTotal;
           return;
         }
 
         a.subtasks.forEach(sub => {
           const subHours = sub.hours || 0;
-          const effectiveHours = subHours * scale;
-          const subPct = emp.weeklyBudget > 0 ? (effectiveHours / emp.weeklyBudget) * 100 : 0;
+          if (subHours <= 0) return;
+          const fractionOfParent = subHours / totalSubHours;
+          const subPctOfTotal = parentPctOfTotal * fractionOfParent;
 
-          if (subPct > 0) {
-            const fill = document.createElement('div');
-            fill.className = 'gauge-fill';
-            fill.style.left = offset + '%';
-            fill.style.width = subPct + '%';
-            fill.style.background = sub.color || '#22c55e';
-            gauge.appendChild(fill);
-            offset += subPct;
-          }
+          const fill = document.createElement('div');
+          fill.className = 'gauge-fill';
+          fill.style.left = offset + '%';
+          fill.style.width = subPctOfTotal + '%';
+          fill.style.background = sub.color || baseColor;
+          gauge.appendChild(fill);
+          offset += subPctOfTotal;
         });
       });
 
@@ -711,7 +771,7 @@
 
           const colorInput = document.createElement('input');
           colorInput.type = 'color';
-          colorInput.value = sub.color || '#22c55e';
+          colorInput.value = sub.color || (job.color || '#3b82f6');
           colorInput.onchange = () => {
             sub.color = colorInput.value;
             renderEmployees();
@@ -738,7 +798,7 @@
             assignment.subtasks.push({
               name: subInput.value.trim(),
               hours: 0,
-              color: '#22c55e'
+              color: job.color || '#3b82f6'
             });
             subInput.value = '';
             renderEmployees();
@@ -771,47 +831,121 @@
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
 
-    const totals = {};
     const week = getAssignmentsForWeek(weekKey);
 
-    Object.values(week).forEach(empAssignments => {
+    // Per-project totals and employee counts
+    const projectTotals = {};
+    const projectEmployees = {};
+
+    Object.entries(week).forEach(([empId, empAssignments]) => {
       Object.entries(empAssignments).forEach(([jobId, a]) => {
         const parentHours = a.hours || 0;
-        totals[jobId] = (totals[jobId] || 0) + parentHours;
+        if (parentHours <= 0) return;
+        projectTotals[jobId] = (projectTotals[jobId] || 0) + parentHours;
+        if (!projectEmployees[jobId]) projectEmployees[jobId] = new Set();
+        projectEmployees[jobId].add(empId);
       });
     });
 
-    const labels = [];
-    const values = [];
+    const totalEmpHours = totalHoursAllEmployees(weekKey);
+    chartHeaderLineEl.textContent = `Total employee hours this week: ${totalEmpHours}`;
 
-    Object.entries(totals).forEach(([jobId, hours]) => {
+    // Legend
+    chartLegendEl.innerHTML = '';
+    Object.entries(projectTotals).forEach(([jobId, hours]) => {
       const job = data.jobs.find(j => j.id === jobId);
-      if (job) {
-        labels.push(job.name);
-        values.push(hours);
-      }
+      if (!job) return;
+      const legendItem = document.createElement('div');
+      legendItem.className = 'legend-item';
+
+      const colorBox = document.createElement('div');
+      colorBox.className = 'legend-color';
+      colorBox.style.background = job.color || '#3b82f6';
+
+      const label = document.createElement('span');
+      const empCount = projectEmployees[jobId] ? projectEmployees[jobId].size : 0;
+      label.textContent = `${job.name}: ${hours} hrs (${empCount} employee${empCount === 1 ? '' : 's'})`;
+
+      legendItem.appendChild(colorBox);
+      legendItem.appendChild(label);
+      chartLegendEl.appendChild(legendItem);
     });
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    if (labels.length === 0) return;
+    if (data.employees.length === 0) return;
 
     const width = canvas.width;
     const height = canvas.height;
-    const max = Math.max(...values, 1);
-    const barWidth = 40;
-    const gap = 30;
 
-    labels.forEach((label, i) => {
-      const x = i * (barWidth + gap) + 40;
-      const barHeight = (values[i] / max) * (height - 60);
+    const employees = data.employees;
+    const laneHeight = (height - 40) / employees.length;
+    const leftMargin = 80;
+    const rightMargin = 20;
 
-      ctx.fillStyle = "#3b82f6";
-      ctx.fillRect(x, height - barHeight - 20, barWidth, barHeight);
+    // Find max hours per employee for scaling
+    let maxEmpHours = 0;
+    employees.forEach(emp => {
+      const h = totalHoursForEmployeeWeek(weekKey, emp.id);
+      if (h > maxEmpHours) maxEmpHours = h;
+    });
+    if (maxEmpHours <= 0) maxEmpHours = 1;
 
+    employees.forEach((emp, index) => {
+      const yTop = 20 + index * laneHeight;
+      const yCenter = yTop + laneHeight / 2;
+
+      // Employee label
       ctx.fillStyle = "#000";
       ctx.font = "11px Arial";
-      ctx.fillText(label, x, height - 5);
+      ctx.textBaseline = "middle";
+      ctx.fillText(emp.name, 5, yCenter);
+
+      const empAssignments = getEmployeeAssignmentsForWeek(weekKey, emp.id);
+      const totalEmpHoursLocal = totalHoursForEmployeeWeek(weekKey, emp.id);
+      const scale = (width - leftMargin - rightMargin) / maxEmpHours;
+
+      let currentX = leftMargin;
+
+      Object.entries(empAssignments).forEach(([jobId, a]) => {
+        const parentHours = a.hours || 0;
+        if (parentHours <= 0) return;
+
+        const job = data.jobs.find(j => j.id === jobId);
+        const baseColor = job && job.color ? job.color : '#3b82f6';
+
+        const totalSubHours = (a.subtasks || []).reduce((s, sub) => s + (sub.hours || 0), 0);
+
+        if (!a.subtasks || a.subtasks.length === 0 || totalSubHours <= 0) {
+          const w = parentHours * scale;
+          ctx.fillStyle = baseColor;
+          ctx.fillRect(currentX, yTop + 4, w, laneHeight - 8);
+          currentX += w;
+          return;
+        }
+
+        a.subtasks.forEach(sub => {
+          const subHours = sub.hours || 0;
+          if (subHours <= 0) return;
+          const fractionOfParent = subHours / totalSubHours;
+          const effectiveHours = parentHours * fractionOfParent;
+          const w = effectiveHours * scale;
+
+          ctx.fillStyle = sub.color || baseColor;
+          ctx.fillRect(currentX, yTop + 4, w, laneHeight - 8);
+          currentX += w;
+        });
+      });
+
+      // Outline lane
+      ctx.strokeStyle = "#cbd5e1";
+      ctx.strokeRect(leftMargin, yTop + 4, (width - leftMargin - rightMargin), laneHeight - 8);
+
+      // Total hours label at end of lane
+      ctx.fillStyle = "#000";
+      ctx.font = "10px Arial";
+      ctx.textBaseline = "middle";
+      ctx.fillText(`${totalEmpHoursLocal} hrs`, width - rightMargin - 40, yCenter);
     });
   }
 
@@ -827,7 +961,8 @@
     data.jobs.push({
       id: uuid(),
       name: name.trim(),
-      category: document.getElementById('jobCategoryInput').value
+      category: document.getElementById('jobCategoryInput').value,
+      color: document.getElementById('jobColorInput').value || '#3b82f6'
     });
     renderJobs();
   }
@@ -1034,15 +1169,22 @@
       const x = e.clientX - containerRect.left;
 
       if (divider.id === 'divider1') {
-        const leftWidth = Math.max(150, Math.min(x, totalWidth - 300));
-        const rightWidth = totalWidth - leftWidth - divider.offsetWidth - document.querySelector('.employees-column').offsetWidth - document.getElementById('divider2').offsetWidth;
+        const min = 150;
+        const max = totalWidth - 300;
+        const leftWidth = Math.max(min, Math.min(x, max));
+        const employeesWidth = document.querySelector('.employees-column').offsetWidth;
+        const divider2Width = document.getElementById('divider2').offsetWidth;
+        const rightWidth = totalWidth - leftWidth - divider.offsetWidth - employeesWidth - divider2Width;
         if (rightWidth < 150) return;
         leftCol.style.width = leftWidth + 'px';
         rightCol.style.width = rightWidth + 'px';
       } else if (divider.id === 'divider2') {
         const chartWidth = document.querySelector('.chart-column').offsetWidth;
-        const leftWidth = Math.max(150, Math.min(x - chartWidth - document.getElementById('divider1').offsetWidth, totalWidth - chartWidth - 300));
-        const rightWidth = totalWidth - chartWidth - document.getElementById('divider1').offsetWidth - divider.offsetWidth - leftWidth;
+        const divider1Width = document.getElementById('divider1').offsetWidth;
+        const min = 150;
+        const max = totalWidth - chartWidth - 300;
+        const leftWidth = Math.max(min, Math.min(x - chartWidth - divider1Width, max));
+        const rightWidth = totalWidth - chartWidth - divider1Width - divider.offsetWidth - leftWidth;
         if (rightWidth < 150) return;
         leftCol.style.width = leftWidth + 'px';
         rightCol.style.width = rightWidth + 'px';
