@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Estimation Management Planner</title>
+  <title>Estimation Management Planner V1</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -69,6 +69,16 @@
       box-sizing: border-box;
       overflow-y: auto;
       background: #ffffff;
+    }
+
+    .divider {
+      width: 5px;
+      background: #cbd5e1;
+      cursor: col-resize;
+    }
+
+    .divider:hover {
+      background: #94a3b8;
     }
 
     h2 {
@@ -303,6 +313,9 @@
         border-right: none;
         border-bottom: 1px solid #ddd;
       }
+      .divider {
+        display: none;
+      }
     }
   </style>
 </head>
@@ -323,6 +336,8 @@
     <canvas id="projectChart"></canvas>
   </div>
 
+  <div class="divider" id="divider1"></div>
+
   <!-- Jobs column -->
   <div class="jobs-column">
     <h2>Jobs</h2>
@@ -337,6 +352,8 @@
     </div>
     <div id="jobsList"></div>
   </div>
+
+  <div class="divider" id="divider2"></div>
 
   <!-- Employees column -->
   <div class="employees-column">
@@ -410,18 +427,18 @@
     return week[employeeId];
   }
 
+  // Only parent hours count toward total
   function totalHoursForEmployeeWeek(weekKey, employeeId) {
     const empAssignments = getEmployeeAssignmentsForWeek(weekKey, employeeId);
     let sum = 0;
     Object.values(empAssignments).forEach(a => {
       sum += (a.hours || 0);
-      if (a.subtasks) {
-        a.subtasks.forEach(sub => {
-          sum += (sub.hours || 0);
-        });
-      }
     });
     return sum;
+  }
+
+  function forceChartUpdate() {
+    setTimeout(renderProjectChart, 30);
   }
 
   // ---------- Rendering ----------
@@ -476,11 +493,14 @@
         categorySelect.onchange = () => {
           job.category = categorySelect.value;
           renderJobs();
+          forceChartUpdate();
         };
 
         const removeBtn = document.createElement('button');
         removeBtn.textContent = 'X';
-        removeBtn.onclick = () => removeJob(job.id);
+        removeBtn.onclick = () => {
+          removeJob(job.id);
+        };
 
         div.appendChild(span);
         div.appendChild(categorySelect);
@@ -505,6 +525,8 @@
       section.appendChild(list);
       container.appendChild(section);
     });
+
+    forceChartUpdate();
   }
 
   function reorderJob(dragId, targetId, category) {
@@ -568,32 +590,52 @@
 
       const empAssignments = getEmployeeAssignmentsForWeek(weekKey, emp.id);
 
-      // stacked segments
       let offset = 0;
       Object.entries(empAssignments).forEach(([jobId, a]) => {
-        const mainHours = a.hours || 0;
-        const mainPct = emp.weeklyBudget > 0 ? (mainHours / emp.weeklyBudget) * 100 : 0;
+        const parentHours = a.hours || 0;
+        const parentPct = emp.weeklyBudget > 0 ? (parentHours / emp.weeklyBudget) * 100 : 0;
 
-        if (mainPct > 0) {
-          const mainFill = document.createElement('div');
-          mainFill.className = 'gauge-fill';
-          mainFill.style.left = offset + '%';
-          mainFill.style.width = mainPct + '%';
-          mainFill.style.background = '#3b82f6';
-          gauge.appendChild(mainFill);
-          offset += mainPct;
+        if (!a.subtasks || a.subtasks.length === 0) {
+          if (parentPct > 0) {
+            const fill = document.createElement('div');
+            fill.className = 'gauge-fill';
+            fill.style.left = offset + '%';
+            fill.style.width = parentPct + '%';
+            fill.style.background = '#3b82f6';
+            gauge.appendChild(fill);
+            offset += parentPct;
+          }
+          return;
         }
 
-        (a.subtasks || []).forEach(sub => {
+        const totalSubHours = a.subtasks.reduce((s, sub) => s + (sub.hours || 0), 0);
+        const scale = (totalSubHours > 0 && parentHours > 0) ? (parentHours / totalSubHours) : 0;
+
+        if (scale === 0) {
+          if (parentPct > 0) {
+            const fill = document.createElement('div');
+            fill.className = 'gauge-fill';
+            fill.style.left = offset + '%';
+            fill.style.width = parentPct + '%';
+            fill.style.background = '#3b82f6';
+            gauge.appendChild(fill);
+            offset += parentPct;
+          }
+          return;
+        }
+
+        a.subtasks.forEach(sub => {
           const subHours = sub.hours || 0;
-          const subPct = emp.weeklyBudget > 0 ? (subHours / emp.weeklyBudget) * 100 : 0;
+          const effectiveHours = subHours * scale;
+          const subPct = emp.weeklyBudget > 0 ? (effectiveHours / emp.weeklyBudget) * 100 : 0;
+
           if (subPct > 0) {
-            const subFill = document.createElement('div');
-            subFill.className = 'gauge-fill';
-            subFill.style.left = offset + '%';
-            subFill.style.width = subPct + '%';
-            subFill.style.background = sub.color || '#22c55e';
-            gauge.appendChild(subFill);
+            const fill = document.createElement('div');
+            fill.className = 'gauge-fill';
+            fill.style.left = offset + '%';
+            fill.style.width = subPct + '%';
+            fill.style.background = sub.color || '#22c55e';
+            gauge.appendChild(fill);
             offset += subPct;
           }
         });
@@ -717,6 +759,8 @@
 
       employeesListEl.appendChild(card);
     });
+
+    forceChartUpdate();
   }
 
   function renderProjectChart() {
@@ -732,11 +776,8 @@
 
     Object.values(week).forEach(empAssignments => {
       Object.entries(empAssignments).forEach(([jobId, a]) => {
-        let sum = a.hours || 0;
-        (a.subtasks || []).forEach(sub => {
-          sum += (sub.hours || 0);
-        });
-        totals[jobId] = (totals[jobId] || 0) + sum;
+        const parentHours = a.hours || 0;
+        totals[jobId] = (totals[jobId] || 0) + parentHours;
       });
     });
 
@@ -778,7 +819,6 @@
     renderWeekLabel();
     renderJobs();
     renderEmployees();
-    setTimeout(renderProjectChart, 50);
   }
 
   // ---------- Data operations ----------
@@ -909,10 +949,7 @@
         jobIds.forEach(jobId => {
           const job = data.jobs.find(j => j.id === jobId);
           const jobName = job ? job.name : '(deleted job)';
-          let hours = empAssignments[jobId].hours || 0;
-          (empAssignments[jobId].subtasks || []).forEach(sub => {
-            hours += (sub.hours || 0);
-          });
+          const hours = empAssignments[jobId].hours || 0;
           rows.push([weekKey, emp.name, jobName, hours, emp.weeklyBudget, total]);
         });
       }
@@ -981,6 +1018,51 @@
     reader.readAsText(file);
     e.target.value = '';
   });
+
+  // ---------- Resizable columns ----------
+  function makeResizable(divider, leftCol, rightCol) {
+    let dragging = false;
+
+    divider.addEventListener('mousedown', () => dragging = true);
+    window.addEventListener('mouseup', () => dragging = false);
+
+    window.addEventListener('mousemove', e => {
+      if (!dragging) return;
+
+      const containerRect = document.querySelector('.container').getBoundingClientRect();
+      const totalWidth = containerRect.width;
+      const x = e.clientX - containerRect.left;
+
+      if (divider.id === 'divider1') {
+        const leftWidth = Math.max(150, Math.min(x, totalWidth - 300));
+        const rightWidth = totalWidth - leftWidth - divider.offsetWidth - document.querySelector('.employees-column').offsetWidth - document.getElementById('divider2').offsetWidth;
+        if (rightWidth < 150) return;
+        leftCol.style.width = leftWidth + 'px';
+        rightCol.style.width = rightWidth + 'px';
+      } else if (divider.id === 'divider2') {
+        const chartWidth = document.querySelector('.chart-column').offsetWidth;
+        const leftWidth = Math.max(150, Math.min(x - chartWidth - document.getElementById('divider1').offsetWidth, totalWidth - chartWidth - 300));
+        const rightWidth = totalWidth - chartWidth - document.getElementById('divider1').offsetWidth - divider.offsetWidth - leftWidth;
+        if (rightWidth < 150) return;
+        leftCol.style.width = leftWidth + 'px';
+        rightCol.style.width = rightWidth + 'px';
+      }
+
+      forceChartUpdate();
+    });
+  }
+
+  makeResizable(
+    document.getElementById('divider1'),
+    document.querySelector('.chart-column'),
+    document.querySelector('.jobs-column')
+  );
+
+  makeResizable(
+    document.getElementById('divider2'),
+    document.querySelector('.jobs-column'),
+    document.querySelector('.employees-column')
+  );
 
   // ---------- Initial render ----------
   renderAll();
