@@ -140,7 +140,7 @@ function renderWeekLabel() {
 function renderJobs() {
   jobsListEl.innerHTML = '';
 
-  const categories = ['Active', 'Upcoming', 'Complete'];
+  const categories = ['Active', 'Upcoming', 'Complete', 'Other'];
   const subCategories = ['Electrical', 'Instrumentation', 'Other'];
 
   categories.forEach(cat => {
@@ -191,7 +191,7 @@ function renderJobs() {
       };
 
       const categorySelect = document.createElement('select');
-      ['Active', 'Upcoming', 'Complete'].forEach(c => {
+      ['Active', 'Upcoming', 'Complete', 'Other'].forEach(c => {
         const opt = document.createElement('option');
         opt.value = c;
         opt.textContent = c;
@@ -256,7 +256,7 @@ function renderJobs() {
             // Dot to visually mark subtasks
             const dot = document.createElement('span');
             dot.textContent = '•';
-            dot.style.width = '10px';
+            dot.style.width = '1px';
 
             const nameSpan = document.createElement('span');
             nameSpan.textContent = st.name;
