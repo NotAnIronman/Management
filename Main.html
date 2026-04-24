@@ -200,6 +200,11 @@
       color: #6b7280;
     }
 
+    .employee-district select {
+      font-size: 11px;
+      padding: 2px 4px;
+    }
+
     .gauge {
       position: relative;
       height: 12px;
@@ -315,9 +320,32 @@
       z-index: 10;
     }
 
-    footer .toolbar button,
-    footer .toolbar input {
-      color: white;
+    footer .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      color: #000;
+    }
+
+    footer .toolbar button {
+      color: #000;
+      background: #e5e7eb;
+      border: 1px solid #9ca3af;
+      padding: 4px 10px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    footer .toolbar label {
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    footer .toolbar input[type="file"] {
+      color: #fff;
+      font-size: 11px;
+      margin-left: 6px;
     }
 
     #projectChart {
@@ -640,6 +668,12 @@
           forceChartUpdate();
         };
 
+        const collapseBtn = document.createElement('button');
+        collapseBtn.textContent = 'Toggle';
+        collapseBtn.onclick = () => {
+          div.classList.toggle('collapsed');
+        };
+
         const removeBtn = document.createElement('button');
         removeBtn.textContent = 'X';
         removeBtn.onclick = () => {
@@ -650,6 +684,7 @@
         headerRow.appendChild(span);
         headerRow.appendChild(colorInput);
         headerRow.appendChild(categorySelect);
+        headerRow.appendChild(collapseBtn);
         headerRow.appendChild(removeBtn);
 
         div.appendChild(headerRow);
@@ -674,7 +709,7 @@
 
           job.subtasks
             .filter(st => st.category === subCat)
-            .forEach((st, idx) => {
+            .forEach(st => {
               const row = document.createElement('div');
               row.className = 'job-subtask-row';
 
@@ -797,6 +832,7 @@
       employeesInDistrict.forEach(emp => {
         const card = document.createElement('div');
         card.className = 'employee-card';
+        if (emp.collapsed) card.classList.add('collapsed');
 
         const headerRow = document.createElement('div');
         headerRow.className = 'employee-header';
@@ -807,7 +843,19 @@
 
         const districtSpan = document.createElement('span');
         districtSpan.className = 'employee-district';
-        districtSpan.textContent = emp.district || '';
+        const districtSelect = document.createElement('select');
+        ["Electrical", "Instrumentation", "Flex"].forEach(d => {
+          const opt = document.createElement('option');
+          opt.value = d;
+          opt.textContent = d;
+          if (emp.district === d) opt.selected = true;
+          districtSelect.appendChild(opt);
+        });
+        districtSelect.onchange = () => {
+          emp.district = districtSelect.value;
+          renderEmployees();
+        };
+        districtSpan.appendChild(districtSelect);
 
         const total = totalHoursForEmployeeWeek(weekKey, emp.id);
         const budgetSpan = document.createElement('span');
@@ -816,7 +864,10 @@
 
         const toggleBtn = document.createElement('button');
         toggleBtn.textContent = 'Toggle';
-        toggleBtn.onclick = () => card.classList.toggle('collapsed');
+        toggleBtn.onclick = () => {
+          emp.collapsed = !emp.collapsed;
+          card.classList.toggle('collapsed');
+        };
 
         const removeBtn = document.createElement('button');
         removeBtn.textContent = 'Remove';
@@ -839,7 +890,7 @@
 
         const empAssignments = getEmployeeAssignmentsForWeek(weekKey, emp.id);
 
-        const totalHours = total || 1; // bar based on total hours
+        const totalHours = total || 1;
         let offset = 0;
 
         Object.entries(empAssignments).forEach(([jobId, a]) => {
@@ -865,7 +916,6 @@
             return;
           }
 
-          // Subitems are a % of the parent; they do NOT add to the parent
           const scale = totalSubHours > parentHours ? (parentHours / totalSubHours) : 1;
           let usedParentHours = 0;
 
@@ -955,7 +1005,7 @@
             subRow.className = 'subtask-row';
 
             const subName = document.createElement('span');
-            subName.textContent = sub.name;
+            subName.textContent = `${index + 1}. ${sub.name}`;
 
             const subHours = document.createElement('input');
             subHours.type = 'number';
@@ -989,8 +1039,18 @@
             subList.appendChild(subRow);
           });
 
+          const subInputRow = document.createElement('div');
+          subInputRow.style.display = 'flex';
+          subInputRow.style.gap = '4px';
+          subInputRow.style.alignItems = 'center';
+
+          const subInputLabel = document.createElement('span');
+          subInputLabel.style.fontSize = '11px';
+          subInputLabel.textContent = 'Subtask name:';
+
           const subInput = document.createElement('input');
           subInput.placeholder = "Add subtask";
+          subInput.style.flex = '1';
           subInput.onkeydown = e => {
             if (e.key === 'Enter' && subInput.value.trim()) {
               assignment.subtasks.push({
@@ -1003,9 +1063,12 @@
             }
           };
 
+          subInputRow.appendChild(subInputLabel);
+          subInputRow.appendChild(subInput);
+
           row.appendChild(top);
           row.appendChild(subList);
-          row.appendChild(subInput);
+          row.appendChild(subInputRow);
 
           dropzone.appendChild(row);
         });
@@ -1032,7 +1095,6 @@
 
     const week = getAssignmentsForWeek(weekKey);
 
-    // Per-project totals and employee counts
     const projectTotals = {};
     const projectEmployees = {};
 
@@ -1054,12 +1116,10 @@
     chartHeaderLineEl.textContent =
       `Utilization: ${usedHours}/${capacity} - ${utilizationPct}%`;
 
-    // Add "Unutilized" pseudo-project if there is unused capacity
     if (unutilizedHours > 0) {
       projectTotals['__unutilized__'] = unutilizedHours;
     }
 
-    // Legend
     chartLegendEl.innerHTML = '';
     Object.entries(projectTotals).forEach(([jobId, hours]) => {
       const legendItem = document.createElement('div');
@@ -1128,9 +1188,10 @@
       ctx.fillStyle = color;
       ctx.fillRect(x, y, barWidth, barHeight);
 
+      const percentOfWorkload = capacity > 0 ? Math.round((hours / capacity) * 100) : 0;
       ctx.fillStyle = "#000";
       ctx.textAlign = "center";
-      ctx.fillText(`${hours}h`, x + barWidth / 2, y - 10);
+      ctx.fillText(`${hours}h (${percentOfWorkload}%)`, x + barWidth / 2, y - 10);
 
       ctx.save();
       ctx.translate(x + barWidth / 2, height - bottomMargin + 12);
@@ -1178,7 +1239,8 @@
       id: uuid(),
       name: name.trim(),
       weeklyBudget: budget,
-      district: district || 'Electrical'
+      district: district || 'Electrical',
+      collapsed: false
     });
     renderEmployees();
   }
@@ -1189,26 +1251,33 @@
       const week = data.assignments[weekKey];
       if (week[empId]) delete week[empId];
     });
-    renderAll();
+    renderEmployees();
   }
 
-  function deepCopySubtasksTemplate(job) {
+  function deepCopySubtasksTemplate(job, district) {
     job.subtasks = job.subtasks || [];
-    return job.subtasks.map(st => ({
-      name: st.name,
-      hours: 0,
-      color: st.color || job.color || '#3b82f6',
-      category: st.category || 'Other'
-    }));
+    return job.subtasks
+      .filter(st => {
+        if (district === 'Flex') return true;
+        return st.category === district;
+      })
+      .map(st => ({
+        name: st.name,
+        hours: 0,
+        color: st.color || job.color || '#3b82f6',
+        category: st.category || 'Other'
+      }));
   }
 
   function addAssignment(weekKey, empId, jobId) {
     const empAssignments = getEmployeeAssignmentsForWeek(weekKey, empId);
     if (!empAssignments[jobId]) {
       const job = data.jobs.find(j => j.id === jobId);
+      const emp = data.employees.find(e => e.id === empId);
+      const district = emp ? emp.district : 'Electrical';
       empAssignments[jobId] = {
         hours: 0,
-        subtasks: job ? deepCopySubtasksTemplate(job) : []
+        subtasks: job ? deepCopySubtasksTemplate(job, district) : []
       };
     }
     renderEmployees();
@@ -1218,9 +1287,11 @@
     const empAssignments = getEmployeeAssignmentsForWeek(weekKey, empId);
     if (!empAssignments[jobId]) {
       const job = data.jobs.find(j => j.id === jobId);
+      const emp = data.employees.find(e => e.id === empId);
+      const district = emp ? emp.district : 'Electrical';
       empAssignments[jobId] = {
         hours: 0,
-        subtasks: job ? deepCopySubtasksTemplate(job) : []
+        subtasks: job ? deepCopySubtasksTemplate(job, district) : []
       };
     }
     empAssignments[jobId].hours = hours;
