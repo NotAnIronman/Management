@@ -480,3 +480,43 @@ footer .toolbar input[type="file"] {
     display: none;
   }
 }
+
+/* Collapse job category groups */
+.job-category-section.collapsed .job-category-list {
+    display: none;
+}
+
+.job-category-header {
+    font-weight: bold;
+    padding: 4px 6px;
+    background: #e5e7eb;
+    border-radius: 4px;
+    margin-bottom: 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+/* Fix subtask dot spacing (jobs list) */
+.job-subtask-dot {
+    flex: 0 0 auto;
+    margin-right: 4px;
+}
+
+.job-subtask-name {
+    flex: 1 1 auto;
+}
+
+/* Fix subtask dot spacing (employee assignments) */
+.employee-subtask-dot {
+    flex: 0 0 auto;
+    margin-right: 4px;
+}
+
+.employee-subtask-name {
+    flex: 1 1 auto;
+}
+
+/* Unutilized time fill */
+.gauge-fill.unutilized {
+    background: #9ca3af !important;
+}
