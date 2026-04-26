@@ -1,26 +1,32 @@
 // Estimation Management Planner - script.js
 // -----------------------------------------------------------
-// This file handles all of the behavior for the planner:
-// - Managing weeks
-// - Adding jobs and employees
-// - Dragging jobs onto employees
-// - Tracking hours and subtasks
-// - Drawing the project allocation chart
-// - Importing / exporting data
-// - Resizing the three main columns
+// Changes from original:
+//  1. Dark/Light mode toggle (settings gear in header)
+//  2. Auto-pick unused color when adding a new job
+//  3. Drag-and-drop a single subtask → creates job with ONLY that subtask
+//  4. "Jump to Present" button moved below date range (HTML change)
+//  5. Job Toggle button now correctly collapses subtasks (uses job-collapsed class)
+//  6. Collapsing a subtask group also hides the Add Subtask row
+//  7. Subtask color locked to job color; only manually-added employee subtasks get a color picker
 
 // ---------- Constants ----------
 const DEFAULT_COLOR = '#03bafc';
 const DEFAULT_DISTRICT = 'Electrical';
 
-// ---------- Basic helpers for dates and IDs ----------
+// Palette for auto-color selection (#2)
+const COLOR_PALETTE = [
+  '#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6',
+  '#ec4899', '#06b6d4', '#f97316', '#14b8a6', '#6366f1',
+  '#84cc16', '#e11d48', '#0ea5e9', '#d97706', '#7c3aed',
+  '#059669', '#dc2626', '#2563eb', '#db2777', '#0891b2'
+];
 
-// Create a unique ID for jobs and employees
+// ---------- Basic helpers ----------
+
 function uuid() {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID();
   }
-  // Fallback (not a full UUID v4, but good enough if crypto.randomUUID is unavailable)
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
     const r = Math.random() * 16 | 0;
     const v = c === 'x' ? r : (r & 0x3 | 0x8);
@@ -28,17 +34,15 @@ function uuid() {
   });
 }
 
-// Get the Monday of the week for a given date
 function startOfWeek(date) {
   const d = new Date(date);
-  const day = d.getDay(); // 0 = Sunday, 1 = Monday, ...
-  const diff = (day + 6) % 7; // days since Monday
+  const day = d.getDay();
+  const diff = (day + 6) % 7;
   d.setDate(d.getDate() - diff);
   d.setHours(0, 0, 0, 0);
   return d;
 }
 
-// Format a date as YYYY-MM-DD in local time
 function formatDate(d) {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, '0');
@@ -46,43 +50,79 @@ function formatDate(d) {
   return `${year}-${month}-${day}`;
 }
 
-// Get a key that represents the week (based on Monday)
 function getWeekKey(date) {
   return formatDate(startOfWeek(date));
 }
 
+// ---------- Auto-color helper (#2) ----------
+
+function pickUnusedColor() {
+  const usedColors = new Set(data.jobs.map(j => (j.color || '').toLowerCase()));
+  for (const c of COLOR_PALETTE) {
+    if (!usedColors.has(c.toLowerCase())) return c;
+  }
+  // All palette colors used — pick a random one
+  return COLOR_PALETTE[Math.floor(Math.random() * COLOR_PALETTE.length)];
+}
+
 // ---------- Main data model ----------
 
-// This object holds everything the app needs to remember.
 const data = {
-  employees: [], // List of employees
-  jobs: [],      // List of jobs
-  assignments: {}, // assignments[weekKey][employeeId][jobId] = { hours, subtasks }
-  currentWeekStart: startOfWeek(new Date()) // The week we are currently viewing
+  employees: [],
+  jobs: [],
+  assignments: {},
+  currentWeekStart: startOfWeek(new Date())
 };
 
 // ---------- DOM references ----------
-const weekLabelEl = document.getElementById('weekLabel');
-const jobsListEl = document.getElementById('jobsList');
-const employeesListEl = document.getElementById('employeesList');
-const chartHeaderLineEl = document.getElementById('chartHeaderLine');
-const chartLegendEl = document.getElementById('chartLegend');
-const projectChartCanvas = document.getElementById('projectChart');
+const weekLabelEl         = document.getElementById('weekLabel');
+const jobsListEl          = document.getElementById('jobsList');
+const employeesListEl     = document.getElementById('employeesList');
+const chartHeaderLineEl   = document.getElementById('chartHeaderLine');
+const chartLegendEl       = document.getElementById('chartLegend');
+const projectChartCanvas  = document.getElementById('projectChart');
+
+// ---------- Dark mode (#1) ----------
+
+const darkModeToggle = document.getElementById('darkModeToggle');
+const settingsBtn    = document.getElementById('settingsBtn');
+const settingsMenu   = document.getElementById('settingsMenu');
+
+// Restore saved preference
+const savedTheme = localStorage.getItem('planner-theme') || 'light';
+document.documentElement.setAttribute('data-theme', savedTheme);
+if (savedTheme === 'dark') darkModeToggle.checked = true;
+
+darkModeToggle.addEventListener('change', () => {
+  const theme = darkModeToggle.checked ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem('planner-theme', theme);
+  // Re-draw chart so canvas colors update
+  forceChartUpdate();
+});
+
+settingsBtn.addEventListener('click', e => {
+  e.stopPropagation();
+  settingsMenu.classList.toggle('hidden');
+});
+
+document.addEventListener('click', e => {
+  if (!settingsMenu.contains(e.target) && e.target !== settingsBtn) {
+    settingsMenu.classList.add('hidden');
+  }
+});
 
 // ---------- Week helpers ----------
 
-// Get the current week key based on data.currentWeekStart
 function getCurrentWeekKey() {
   return getWeekKey(data.currentWeekStart);
 }
 
-// Make sure we always have a week object in data.assignments
 function getAssignmentsForWeek(weekKey) {
   if (!data.assignments[weekKey]) data.assignments[weekKey] = {};
   return data.assignments[weekKey];
 }
 
-// Make sure we always have an employee object for a given week
 function getEmployeeAssignmentsForWeek(weekKey, employeeId) {
   const week = getAssignmentsForWeek(weekKey);
   if (!week[employeeId]) week[employeeId] = {};
@@ -91,32 +131,25 @@ function getEmployeeAssignmentsForWeek(weekKey, employeeId) {
 
 // ---------- Hours calculations ----------
 
-// Only the parent job hours count toward total hours for an employee
 function totalHoursForEmployeeWeek(weekKey, employeeId) {
   const empAssignments = getEmployeeAssignmentsForWeek(weekKey, employeeId);
   let sum = 0;
-  Object.values(empAssignments).forEach(a => {
-    sum += (a.hours || 0);
-  });
+  Object.values(empAssignments).forEach(a => { sum += (a.hours || 0); });
   return sum;
 }
 
-// Sum of all hours across all employees for the current week
 function totalHoursAllEmployees(weekKey) {
   return data.employees.reduce((sum, emp) => {
     return sum + totalHoursForEmployeeWeek(weekKey, emp.id);
   }, 0);
 }
 
-// Total capacity is the sum of all employee weekly budgets
 function totalEmployeeCapacity() {
   return data.employees.reduce((sum, emp) => sum + (emp.weeklyBudget || 0), 0);
 }
 
 // ---------- Rendering helpers ----------
 
-// Small helper to re-draw the chart after changes.
-// Using requestAnimationFrame to sync with the browser's paint cycle.
 function forceChartUpdate() {
   if (typeof requestAnimationFrame === 'function') {
     requestAnimationFrame(renderProjectChart);
@@ -125,7 +158,6 @@ function forceChartUpdate() {
   }
 }
 
-// Show the current week range in the header
 function renderWeekLabel() {
   const start = data.currentWeekStart;
   const end = new Date(start);
@@ -137,15 +169,13 @@ function renderWeekLabel() {
 
 function renderJobs() {
   jobsListEl.innerHTML = '';
-  const categories = ['Active', 'Upcoming', 'Complete', 'Other'];
+  const categories    = ['Active', 'Upcoming', 'Complete', 'Other'];
   const subCategories = ['Electrical', 'Instrumentation', 'Other'];
 
   categories.forEach(cat => {
-    // Each category (Active, Upcoming, Complete) gets its own section
     const section = document.createElement('div');
     section.className = 'job-category-section';
 
-    // Header that can collapse the whole category list
     const header = document.createElement('div');
     header.className = 'job-category-header';
     header.textContent = cat;
@@ -161,12 +191,12 @@ function renderJobs() {
       div.draggable = true;
       div.dataset.jobId = job.id;
 
-      // If job has a collapsed flag, apply it
+      // Apply collapsed state if stored (#5)
       if (job.collapsed) {
-        div.classList.add('collapsed');
+        div.classList.add('job-collapsed');
       }
 
-      // Top row of the job (name, color, category, buttons)
+      // Top row
       const headerRow = document.createElement('div');
       headerRow.className = 'item-header-row';
 
@@ -177,11 +207,16 @@ function renderJobs() {
       const span = document.createElement('span');
       span.textContent = job.name;
 
+      // Job-level color picker — changing it syncs all subtask colors (#7)
       const colorInput = document.createElement('input');
       colorInput.type = 'color';
       colorInput.value = job.color || DEFAULT_COLOR;
       colorInput.onchange = () => {
         job.color = colorInput.value;
+        // Sync all subtasks on this job to the new job color (#7)
+        if (job.subtasks) {
+          job.subtasks.forEach(st => { st.color = colorInput.value; });
+        }
         renderJobs();
         forceChartUpdate();
       };
@@ -200,19 +235,17 @@ function renderJobs() {
         forceChartUpdate();
       };
 
-      // Toggle button hides/shows the subtask area only
+      // Toggle button — now correctly uses job-collapsed class (#5)
       const collapseBtn = document.createElement('button');
       collapseBtn.textContent = 'Toggle';
       collapseBtn.onclick = () => {
         job.collapsed = !job.collapsed;
-        div.classList.toggle('collapsed');
+        div.classList.toggle('job-collapsed');
       };
 
       const removeBtn = document.createElement('button');
       removeBtn.textContent = 'X';
-      removeBtn.onclick = () => {
-        removeJob(job.id);
-      };
+      removeBtn.onclick = () => { removeJob(job.id); };
 
       headerRow.appendChild(colorBox);
       headerRow.appendChild(span);
@@ -222,47 +255,52 @@ function renderJobs() {
       headerRow.appendChild(removeBtn);
       div.appendChild(headerRow);
 
-      // Subtasks container for this job
+      // Subtasks container
       const subtasksContainer = document.createElement('div');
       subtasksContainer.className = 'job-subtasks';
 
-      // Each job has subtasks grouped by category (Electrical, Instrumentation, Other)
       subCategories.forEach(subCat => {
         const catBlock = document.createElement('div');
         catBlock.className = 'job-subtask-category';
+        if (job.subtaskGroupCollapsed && job.subtaskGroupCollapsed[subCat]) {
+          catBlock.classList.add('collapsed');
+        }
 
         const catHeader = document.createElement('div');
         catHeader.className = 'job-subtask-category-header';
         catHeader.textContent = subCat;
-        catHeader.onclick = () => catBlock.classList.toggle('collapsed');
+        catHeader.onclick = () => {
+          catBlock.classList.toggle('collapsed');
+          // Persist collapsed state per group (#6)
+          job.subtaskGroupCollapsed = job.subtaskGroupCollapsed || {};
+          job.subtaskGroupCollapsed[subCat] = catBlock.classList.contains('collapsed');
+        };
 
         const items = document.createElement('div');
         items.className = 'job-subtask-items';
 
         const jobSubtasks = job.subtasks || [];
 
-        // Existing subtasks for this category
         jobSubtasks
           .filter(st => st.category === subCat)
           .forEach(st => {
             const row = document.createElement('div');
             row.className = 'job-subtask-row';
-
-            // Make subtask draggable to employees
             row.draggable = true;
+
             row.addEventListener('dragstart', e => {
+              e.stopPropagation(); // Don't also fire the parent job drag
               const payload = {
                 kind: 'subtask',
                 jobId: job.id,
                 subtaskId: st.id || null,
                 name: st.name,
                 category: st.category,
-                color: st.color || job.color || DEFAULT_COLOR
+                color: job.color || DEFAULT_COLOR // Always use job color (#7)
               };
               e.dataTransfer.setData('application/json', JSON.stringify(payload));
             });
 
-            // Dot to visually mark subtasks
             const dot = document.createElement('span');
             dot.className = 'job-subtask-dot';
             dot.textContent = '•';
@@ -271,13 +309,14 @@ function renderJobs() {
             nameSpan.className = 'job-subtask-name';
             nameSpan.textContent = st.name;
 
-            const stColorInput = document.createElement('input');
-            stColorInput.type = 'color';
-            stColorInput.value = st.color || job.color || DEFAULT_COLOR;
-            stColorInput.onchange = () => {
-              st.color = stColorInput.value;
-              renderJobs();
-            };
+            // No color picker on job subtask rows — color is locked to job color (#7)
+            // Show a small dot swatch instead for visual reference
+            const colorDot = document.createElement('span');
+            colorDot.style.cssText = `
+              display:inline-block;width:10px;height:10px;
+              border-radius:50%;background:${job.color || DEFAULT_COLOR};
+              flex-shrink:0;
+            `;
 
             const delBtn = document.createElement('button');
             delBtn.textContent = 'X';
@@ -289,21 +328,17 @@ function renderJobs() {
 
             row.appendChild(dot);
             row.appendChild(nameSpan);
-            row.appendChild(stColorInput);
+            row.appendChild(colorDot);
             row.appendChild(delBtn);
             items.appendChild(row);
           });
 
-        // Row to add a new subtask under this category
+        // Add-subtask row — hidden when group is collapsed via CSS (#6)
         const addRow = document.createElement('div');
         addRow.className = 'job-subtask-add';
 
         const nameInput = document.createElement('input');
         nameInput.placeholder = 'Subtask name';
-
-        const colorPicker = document.createElement('input');
-        colorPicker.type = 'color';
-        colorPicker.value = job.color || DEFAULT_COLOR;
 
         const addBtn = document.createElement('button');
         addBtn.textContent = 'Add';
@@ -314,14 +349,13 @@ function renderJobs() {
             id: uuid(),
             name: nameInput.value.trim(),
             category: subCat,
-            color: colorPicker.value
+            color: job.color || DEFAULT_COLOR // Lock to job color on creation (#7)
           });
           nameInput.value = '';
           renderJobs();
         };
 
         addRow.appendChild(nameInput);
-        addRow.appendChild(colorPicker);
         addRow.appendChild(addBtn);
 
         catBlock.appendChild(catHeader);
@@ -332,11 +366,11 @@ function renderJobs() {
 
       div.appendChild(subtasksContainer);
 
-      // Drag and drop support for reordering jobs within a category
+      // Drag events for reordering jobs
       div.addEventListener('dragstart', e => {
-        // Keep old behavior for reordering
+        // Only fire for the job div itself, not subtask rows
+        if (e.target !== div && e.target.classList.contains('job-subtask-row')) return;
         e.dataTransfer.setData('text/plain', job.id);
-        // Also provide structured payload for dropping on employees
         e.dataTransfer.setData(
           'application/json',
           JSON.stringify({ kind: 'job', jobId: job.id })
@@ -358,10 +392,9 @@ function renderJobs() {
   });
 }
 
-// Reorder jobs within the same category
 function reorderJob(dragId, targetId, category) {
   const jobsInCategory = data.jobs.filter(j => j.category === category);
-  const dragIndex = jobsInCategory.findIndex(j => j.id === dragId);
+  const dragIndex   = jobsInCategory.findIndex(j => j.id === dragId);
   const targetIndex = jobsInCategory.findIndex(j => j.id === targetId);
   if (dragIndex === -1 || targetIndex === -1) return;
   const [moved] = jobsInCategory.splice(dragIndex, 1);
@@ -375,10 +408,9 @@ function reorderJob(dragId, targetId, category) {
 
 function renderEmployees() {
   employeesListEl.innerHTML = '';
-  const weekKey = getCurrentWeekKey();
+  const weekKey  = getCurrentWeekKey();
   const districts = ['Electrical', 'Instrumentation', 'Flex'];
 
-  // We group employees by district to make it easier to see teams
   districts.forEach(district => {
     const employeesInDistrict = data.employees.filter(e => e.district === district);
     if (employeesInDistrict.length === 0) return;
@@ -400,7 +432,6 @@ function renderEmployees() {
       nameSpan.className = 'employee-name';
       nameSpan.textContent = emp.name;
 
-      // District dropdown so we can change an employee's group
       const districtSpan = document.createElement('span');
       districtSpan.className = 'employee-district';
       const districtSelect = document.createElement('select');
@@ -424,6 +455,7 @@ function renderEmployees() {
       budgetSpan.className = 'employee-budget';
       budgetSpan.textContent = `Allocated: ${total}/${emp.weeklyBudget} hrs`;
 
+      // Toggle hides gauge, gauge-label, dropzone via CSS (#5 / employee side)
       const toggleBtn = document.createElement('button');
       toggleBtn.textContent = 'Toggle';
       toggleBtn.onclick = () => {
@@ -441,97 +473,88 @@ function renderEmployees() {
       headerRow.appendChild(toggleBtn);
       headerRow.appendChild(removeBtn);
 
-      // Gauge label shows usage percentage
       const gaugeLabel = document.createElement('div');
       gaugeLabel.className = 'gauge-label';
       const pct = emp.weeklyBudget > 0 ? Math.round((total / emp.weeklyBudget) * 100) : 0;
       gaugeLabel.textContent = `Usage: ${pct}%`;
 
-      // Gauge bar shows how the employee's time is split
       const gauge = document.createElement('div');
       gauge.className = 'gauge';
       if (pct > 100) gauge.classList.add('over-budget');
 
-      const empAssignments = getEmployeeAssignmentsForWeek(weekKey, emp.id);
-
-      // Base gauge on weekly budget; if 0, fall back to total so we don't divide by 0
-      const totalCapacity = emp.weeklyBudget > 0 ? emp.weeklyBudget : (total || 1);
+      const empAssignments  = getEmployeeAssignmentsForWeek(weekKey, emp.id);
+      const totalCapacity   = emp.weeklyBudget > 0 ? emp.weeklyBudget : (total || 1);
       let offset = 0;
 
-      // For each job assigned to this employee, we draw segments
       Object.entries(empAssignments).forEach(([jobId, a]) => {
         const parentHours = a.hours || 0;
         if (parentHours <= 0) return;
 
-        const job = data.jobs.find(j => j.id === jobId);
+        const job       = data.jobs.find(j => j.id === jobId);
         const baseColor = job && job.color ? job.color : DEFAULT_COLOR;
 
         const parentPctOfTotal = (parentHours / totalCapacity) * 100;
+        const subtasks         = a.subtasks || [];
+        const totalSubHours    = subtasks.reduce((s, sub) => s + (sub.hours || 0), 0);
 
-        const subtasks = a.subtasks || [];
-        const totalSubHours = subtasks.reduce((s, sub) => s + (sub.hours || 0), 0);
-
-        // If there are no subtasks, just draw a solid block
         if (subtasks.length === 0 || totalSubHours <= 0) {
           const fill = document.createElement('div');
           fill.className = 'gauge-fill';
-          fill.style.left = offset + '%';
-          fill.style.width = parentPctOfTotal + '%';
+          fill.style.left      = offset + '%';
+          fill.style.width     = parentPctOfTotal + '%';
           fill.style.background = baseColor;
           gauge.appendChild(fill);
           offset += parentPctOfTotal;
           return;
         }
 
-        // If subtasks exceed parent hours, we scale them down
         const scale = totalSubHours > parentHours ? (parentHours / totalSubHours) : 1;
         let usedParentHours = 0;
 
-        // Draw each subtask as a colored slice of the parent job
         subtasks.forEach(sub => {
-          const rawSubHours = sub.hours || 0;
+          const rawSubHours      = sub.hours || 0;
           if (rawSubHours <= 0) return;
           const effectiveSubHours = rawSubHours * scale;
           usedParentHours += effectiveSubHours;
-          const subPctOfTotal = (effectiveSubHours / totalCapacity) * 100;
+          const subPctOfTotal     = (effectiveSubHours / totalCapacity) * 100;
 
           const fill = document.createElement('div');
           fill.className = 'gauge-fill';
-          fill.style.left = offset + '%';
-          fill.style.width = subPctOfTotal + '%';
+          fill.style.left      = offset + '%';
+          fill.style.width     = subPctOfTotal + '%';
+          // Use job color for subtask gauge; employee-added subtasks may have their own color
           fill.style.background = sub.color || baseColor;
           gauge.appendChild(fill);
           offset += subPctOfTotal;
         });
 
-        // Any remaining parent hours are shown in the base job color
         const remainingParentHours = Math.max(0, parentHours - usedParentHours);
         if (remainingParentHours > 0) {
           const remainingPctOfTotal = (remainingParentHours / totalCapacity) * 100;
           const fill = document.createElement('div');
           fill.className = 'gauge-fill';
-          fill.style.left = offset + '%';
-          fill.style.width = remainingPctOfTotal + '%';
+          fill.style.left      = offset + '%';
+          fill.style.width     = remainingPctOfTotal + '%';
           fill.style.background = baseColor;
           gauge.appendChild(fill);
           offset += remainingPctOfTotal;
         }
       });
 
-      // Fill remaining capacity with "Unutilized"
-      const usedHours = total;
+      const usedHours      = total;
       const unutilizedHours = Math.max(0, emp.weeklyBudget - usedHours);
       if (unutilizedHours > 0) {
         const unutilizedPct = (unutilizedHours / totalCapacity) * 100;
         const fill = document.createElement('div');
         fill.className = 'gauge-fill';
-        fill.style.left = offset + '%';
-        fill.style.width = unutilizedPct + '%';
+        fill.style.left      = offset + '%';
+        fill.style.width     = unutilizedPct + '%';
         fill.style.background = '#9ca3af';
         gauge.appendChild(fill);
       }
 
-      // Dropzone where jobs/subtasks can be dragged onto this employee
+      // ---------- Dropzone ----------
+
       const dropzone = document.createElement('div');
       dropzone.className = 'employee-dropzone';
       dropzone.dataset.employeeId = emp.id;
@@ -549,14 +572,9 @@ function renderEmployees() {
         let payload = null;
         const json = e.dataTransfer.getData('application/json');
         if (json) {
-          try {
-            payload = JSON.parse(json);
-          } catch {
-            payload = null;
-          }
+          try { payload = JSON.parse(json); } catch { payload = null; }
         }
 
-        // Fallback: old behavior (plain jobId string)
         if (!payload) {
           const jobId = e.dataTransfer.getData('text/plain');
           if (jobId) addAssignment(weekKey, emp.id, jobId);
@@ -568,34 +586,31 @@ function renderEmployees() {
           return;
         }
 
+        // Subtask drop (#3): create job assignment with ONLY this one subtask
         if (payload.kind === 'subtask') {
           const { jobId, subtaskId, name, category, color } = payload;
-          const assignment = ensureAssignment(weekKey, emp.id, jobId);
-          assignment.subtasks = assignment.subtasks || [];
+          const empAssignments = getEmployeeAssignmentsForWeek(weekKey, emp.id);
 
-          if (subtaskId) {
-            const exists = assignment.subtasks.some(s => s.sourceId === subtaskId);
-            if (!exists) {
-              assignment.subtasks.push({
-                sourceId: subtaskId,
-                name,
-                category,
-                color,
-                hours: 0
-              });
-            }
-          } else {
-            const exists = assignment.subtasks.some(
-              s => s.name === name && s.category === category
-            );
-            if (!exists) {
-              assignment.subtasks.push({
-                name,
-                category,
-                color,
-                hours: 0
-              });
-            }
+          if (!empAssignments[jobId]) {
+            // Create a fresh assignment with NO subtasks (empty array)
+            empAssignments[jobId] = { hours: 0, subtasks: [] };
+          }
+
+          const assignment = empAssignments[jobId];
+
+          // Add only the dropped subtask if not already present
+          const alreadyExists = subtaskId
+            ? assignment.subtasks.some(s => s.sourceId === subtaskId)
+            : assignment.subtasks.some(s => s.name === name && s.category === category);
+
+          if (!alreadyExists) {
+            assignment.subtasks.push({
+              sourceId: subtaskId || null,
+              name,
+              category,
+              color, // job color, not a custom color
+              hours: 0
+            });
           }
 
           renderEmployees();
@@ -603,7 +618,8 @@ function renderEmployees() {
         }
       });
 
-      // Render each job assignment inside the employee card
+      // ---------- Assignment rows ----------
+
       Object.keys(empAssignments).forEach(jobId => {
         const job = data.jobs.find(j => j.id === jobId);
         if (!job) return;
@@ -613,6 +629,9 @@ function renderEmployees() {
         const row = document.createElement('div');
         row.className = 'assignment';
 
+        // Color-coded left border matching the job color
+        row.style.borderLeftColor = job.color || DEFAULT_COLOR;
+
         const top = document.createElement('div');
         top.className = 'assignment-top';
 
@@ -620,17 +639,12 @@ function renderEmployees() {
         label.textContent = job.name;
 
         const hoursInput = document.createElement('input');
-        hoursInput.type = 'number';
-        hoursInput.min = '0';
-        hoursInput.step = '0.25';
+        hoursInput.type  = 'number';
+        hoursInput.min   = '0';
+        hoursInput.step  = '0.25';
         hoursInput.value = assignment.hours || 0;
         hoursInput.onchange = () => {
-          updateAssignmentHours(
-            weekKey,
-            emp.id,
-            jobId,
-            parseFloat(hoursInput.value) || 0
-          );
+          updateAssignmentHours(weekKey, emp.id, jobId, parseFloat(hoursInput.value) || 0);
         };
 
         const removeAssignBtn = document.createElement('button');
@@ -641,7 +655,7 @@ function renderEmployees() {
         top.appendChild(hoursInput);
         top.appendChild(removeAssignBtn);
 
-        // Subtask list for this assignment
+        // Subtask list
         const subList = document.createElement('div');
         subList.className = 'subtask-list';
 
@@ -650,7 +664,6 @@ function renderEmployees() {
           const subRow = document.createElement('div');
           subRow.className = 'subtask-row';
 
-          // Dot to visually separate subtasks
           const dot = document.createElement('span');
           dot.className = 'employee-subtask-dot';
           dot.textContent = '•';
@@ -660,9 +673,9 @@ function renderEmployees() {
           subName.textContent = sub.name;
 
           const subHours = document.createElement('input');
-          subHours.type = 'number';
-          subHours.min = '0';
-          subHours.step = '0.25';
+          subHours.type  = 'number';
+          subHours.min   = '0';
+          subHours.step  = '0.25';
           subHours.value = sub.hours || 0;
           subHours.onchange = () => {
             sub.hours = parseFloat(subHours.value) || 0;
@@ -670,14 +683,28 @@ function renderEmployees() {
             forceChartUpdate();
           };
 
-          const colorInput = document.createElement('input');
-          colorInput.type = 'color';
-          colorInput.value = sub.color || (job.color || DEFAULT_COLOR);
-          colorInput.onchange = () => {
-            sub.color = colorInput.value;
-            renderEmployees();
-            forceChartUpdate();
-          };
+          // Only manually-added employee subtasks get a color picker (#7).
+          // Dragged-from-job subtasks have a sourceId — show a swatch only.
+          let colorEl;
+          if (!sub.sourceId) {
+            // Manually added in employee — allow color change
+            colorEl = document.createElement('input');
+            colorEl.type  = 'color';
+            colorEl.value = sub.color || (job.color || DEFAULT_COLOR);
+            colorEl.onchange = () => {
+              sub.color = colorEl.value;
+              renderEmployees();
+              forceChartUpdate();
+            };
+          } else {
+            // Dragged from job — show read-only color swatch
+            colorEl = document.createElement('span');
+            colorEl.style.cssText = `
+              display:inline-block;width:12px;height:12px;
+              border-radius:50%;background:${sub.color || job.color || DEFAULT_COLOR};
+              flex-shrink:0;border:1px solid rgba(0,0,0,0.15);
+            `;
+          }
 
           const del = document.createElement('button');
           del.textContent = 'X';
@@ -690,31 +717,30 @@ function renderEmployees() {
           subRow.appendChild(dot);
           subRow.appendChild(subName);
           subRow.appendChild(subHours);
-          subRow.appendChild(colorInput);
+          subRow.appendChild(colorEl);
           subRow.appendChild(del);
           subList.appendChild(subRow);
         });
 
-        // Subtask input row appears just under the header
+        // Subtask input row for manually adding subtasks to an employee assignment
         const subInputRow = document.createElement('div');
-        subInputRow.style.display = 'flex';
-        subInputRow.style.gap = '4px';
-        subInputRow.style.alignItems = 'center';
-        subInputRow.style.marginTop = '2px';
+        subInputRow.style.cssText = 'display:flex;gap:4px;align-items:center;margin-top:2px;';
 
         const subInputLabel = document.createElement('span');
         subInputLabel.style.fontSize = '11px';
-        subInputLabel.textContent = 'Subtask name:';
+        subInputLabel.textContent = 'Add subtask:';
 
         const subInput = document.createElement('input');
-        subInput.placeholder = 'Add subtask';
+        subInput.placeholder = 'name…';
         subInput.style.flex = '1';
-        subInput.onkeydown = e => {
-          if (e.key === 'Enter' && subInput.value.trim()) {
+        subInput.onkeydown = ev => {
+          if (ev.key === 'Enter' && subInput.value.trim()) {
+            // Manually added — no sourceId, gets a color picker (#7)
             assignment.subtasks.push({
               name: subInput.value.trim(),
               hours: 0,
               color: job.color || DEFAULT_COLOR
+              // sourceId intentionally absent
             });
             subInput.value = '';
             renderEmployees();
@@ -742,21 +768,26 @@ function renderEmployees() {
 
 // ---------- Project chart rendering ----------
 
-// This chart shows total hours per project (plus unutilized time).
 function renderProjectChart() {
   const weekKey = getCurrentWeekKey();
-  const canvas = projectChartCanvas;
-  const ctx = canvas.getContext('2d');
+  const canvas  = projectChartCanvas;
+  const ctx     = canvas.getContext('2d');
 
-  // Match canvas size to its displayed size
-  canvas.width = canvas.clientWidth;
+  canvas.width  = canvas.clientWidth;
   canvas.height = canvas.clientHeight;
 
-  const week = getAssignmentsForWeek(weekKey);
-  const projectTotals = {};
+  // Detect dark mode for chart text color
+  const isDark    = document.documentElement.getAttribute('data-theme') === 'dark';
+  const textColor = isDark ? '#d1d5db' : '#000000';
+  const bgColor   = isDark ? '#1f2937' : '#ffffff';
+
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const week           = getAssignmentsForWeek(weekKey);
+  const projectTotals  = {};
   const projectEmployees = {};
 
-  // Sum hours per project across all employees
   Object.entries(week).forEach(([empId, empAssignments]) => {
     Object.entries(empAssignments).forEach(([jobId, a]) => {
       const parentHours = a.hours || 0;
@@ -767,19 +798,16 @@ function renderProjectChart() {
     });
   });
 
-  // Utilization summary at the top
-  const usedHours = totalHoursAllEmployees(weekKey);
-  const capacity = totalEmployeeCapacity();
-  const unutilizedHours = Math.max(0, capacity - usedHours);
-  const utilizationPct = capacity > 0 ? Math.round((usedHours / capacity) * 100) : 0;
+  const usedHours        = totalHoursAllEmployees(weekKey);
+  const capacity         = totalEmployeeCapacity();
+  const unutilizedHours  = Math.max(0, capacity - usedHours);
+  const utilizationPct   = capacity > 0 ? Math.round((usedHours / capacity) * 100) : 0;
   chartHeaderLineEl.textContent = `Utilization: ${usedHours}/${capacity} - ${utilizationPct}%`;
 
-  // Add an "Unutilized" bar if there is unused capacity
   if (unutilizedHours > 0) {
     projectTotals['__unutilized__'] = unutilizedHours;
   }
 
-  // Build legend under the chart
   chartLegendEl.innerHTML = '';
   Object.entries(projectTotals).forEach(([jobId, hours]) => {
     const legendItem = document.createElement('div');
@@ -802,64 +830,56 @@ function renderProjectChart() {
 
     const label = document.createElement('span');
     label.textContent = labelText;
-
     legendItem.appendChild(colorBox);
     legendItem.appendChild(label);
     chartLegendEl.appendChild(legendItem);
   });
 
-  // Draw the bars
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const jobIds = Object.keys(projectTotals);
   if (jobIds.length === 0) return;
 
-  const width = canvas.width;
-  const height = canvas.height;
-  const max = Math.max(...Object.values(projectTotals), 1);
-
-  const barWidth = Math.max(
-    30,
-    Math.min(60, (width - 80) / jobIds.length - 20)
-  );
-  const gap = 20;
+  const width        = canvas.width;
+  const height       = canvas.height;
+  const max          = Math.max(...Object.values(projectTotals), 1);
+  const barWidth     = Math.max(30, Math.min(60, (width - 80) / jobIds.length - 20));
+  const gap          = 20;
   const bottomMargin = 30;
-  const topMargin = 30;
-  const chartHeight = height - bottomMargin - topMargin;
+  const topMargin    = 30;
+  const chartHeight  = height - bottomMargin - topMargin;
 
-  ctx.font = '11px Arial';
-  ctx.textBaseline = 'middle';
+  ctx.font          = '11px Arial';
+  ctx.textBaseline  = 'middle';
 
   jobIds.forEach((jobId, index) => {
-    const hours = projectTotals[jobId];
-    const x = 40 + index * (barWidth + gap);
+    const hours     = projectTotals[jobId];
+    const x         = 40 + index * (barWidth + gap);
     const barHeight = (hours / max) * chartHeight;
-    const y = height - bottomMargin - barHeight;
+    const y         = height - bottomMargin - barHeight;
 
     let color = DEFAULT_COLOR;
-    let name = '';
+    let name  = '';
 
     if (jobId === '__unutilized__') {
       color = '#9ca3af';
-      name = 'Unutilized';
+      name  = 'Unutilized';
     } else {
       const job = data.jobs.find(j => j.id === jobId);
       if (!job) return;
       color = job.color || DEFAULT_COLOR;
-      name = job.name;
+      name  = job.name;
     }
 
     ctx.fillStyle = color;
     ctx.fillRect(x, y, barWidth, barHeight);
 
-    // Show hours and percentage of total capacity at the top of each bar
-    const capacity = totalEmployeeCapacity();
-    const percentOfWorkload = capacity > 0 ? Math.round((hours / capacity) * 100) : 0;
-    ctx.fillStyle = '#000';
-    ctx.textAlign = 'center';
+    const capForPct         = totalEmployeeCapacity();
+    const percentOfWorkload = capForPct > 0 ? Math.round((hours / capForPct) * 100) : 0;
+    ctx.fillStyle   = textColor;
+    ctx.textAlign   = 'center';
     ctx.fillText(`${hours}h (${percentOfWorkload}%)`, x + barWidth / 2, y - 10);
 
-    // Draw the project name at the bottom, rotated slightly
     ctx.save();
     ctx.translate(x + barWidth / 2, height - bottomMargin + 12);
     ctx.rotate(-Math.PI / 4);
@@ -873,26 +893,22 @@ function renderProjectChart() {
 function removeJobFromAssignments(jobId) {
   Object.values(data.assignments).forEach(week => {
     Object.values(week).forEach(empAssignments => {
-      if (empAssignments[jobId]) {
-        delete empAssignments[jobId];
-      }
+      if (empAssignments[jobId]) delete empAssignments[jobId];
     });
   });
 }
 
 function removeEmployeeFromAssignments(empId) {
   Object.values(data.assignments).forEach(week => {
-    if (week[empId]) {
-      delete week[empId];
-    }
+    if (week[empId]) delete week[empId];
   });
 }
 
 function ensureAssignment(weekKey, empId, jobId) {
   const empAssignments = getEmployeeAssignmentsForWeek(weekKey, empId);
   if (!empAssignments[jobId]) {
-    const job = data.jobs.find(j => j.id === jobId);
-    const emp = data.employees.find(e => e.id === empId);
+    const job      = data.jobs.find(j => j.id === jobId);
+    const emp      = data.employees.find(e => e.id === empId);
     const district = emp?.district || DEFAULT_DISTRICT;
     empAssignments[jobId] = {
       hours: 0,
@@ -909,24 +925,25 @@ function clearInputs(...ids) {
   });
 }
 
-// ---------- Data operations for jobs and employees ----------
+// ---------- Data operations ----------
 
-// Add a new job to the list
 function addJob(name, category, color) {
   if (!name.trim()) return;
+  // Use provided color, or auto-pick an unused one (#2)
+  const resolvedColor = color || pickUnusedColor();
   data.jobs.push({
     id: uuid(),
     name: name.trim(),
-    category: category,
-    color: color || DEFAULT_COLOR,
+    category,
+    color: resolvedColor,
     subtasks: [],
-    collapsed: false
+    collapsed: false,
+    subtaskGroupCollapsed: {}
   });
   renderJobs();
   forceChartUpdate();
 }
 
-// Remove a job and any assignments that reference it
 function removeJob(jobId) {
   data.jobs = data.jobs.filter(j => j.id !== jobId);
   removeJobFromAssignments(jobId);
@@ -934,7 +951,6 @@ function removeJob(jobId) {
   forceChartUpdate();
 }
 
-// Add a new employee
 function addEmployee(name, weeklyBudget, district) {
   if (!name.trim()) return;
   const budget = parseFloat(weeklyBudget);
@@ -950,7 +966,6 @@ function addEmployee(name, weeklyBudget, district) {
   forceChartUpdate();
 }
 
-// Remove an employee and their assignments
 function removeEmployee(empId) {
   data.employees = data.employees.filter(e => e.id !== empId);
   removeEmployeeFromAssignments(empId);
@@ -958,7 +973,6 @@ function removeEmployee(empId) {
   forceChartUpdate();
 }
 
-// Copy subtasks from a job template, filtered by employee district
 function deepCopySubtasksTemplate(job, district) {
   const subtasks = job.subtasks || [];
   return subtasks
@@ -967,6 +981,7 @@ function deepCopySubtasksTemplate(job, district) {
       return st.category === district;
     })
     .map(st => ({
+      sourceId: st.id || null,
       name: st.name,
       hours: 0,
       color: st.color || job.color || DEFAULT_COLOR,
@@ -974,14 +989,12 @@ function deepCopySubtasksTemplate(job, district) {
     }));
 }
 
-// Add an assignment when a job is dropped onto an employee
 function addAssignment(weekKey, empId, jobId) {
   ensureAssignment(weekKey, empId, jobId);
   renderEmployees();
   forceChartUpdate();
 }
 
-// Update the hours for a specific job assignment
 function updateAssignmentHours(weekKey, empId, jobId, hours) {
   const assignment = ensureAssignment(weekKey, empId, jobId);
   assignment.hours = hours;
@@ -989,7 +1002,6 @@ function updateAssignmentHours(weekKey, empId, jobId, hours) {
   forceChartUpdate();
 }
 
-// Remove a job assignment from an employee
 function removeAssignment(weekKey, empId, jobId) {
   const empAssignments = getEmployeeAssignmentsForWeek(weekKey, empId);
   if (empAssignments[jobId]) delete empAssignments[jobId];
@@ -997,7 +1009,7 @@ function removeAssignment(weekKey, empId, jobId) {
   forceChartUpdate();
 }
 
-// ---------- Week navigation buttons ----------
+// ---------- Week navigation ----------
 
 document.getElementById('prevWeekBtn').addEventListener('click', () => {
   data.currentWeekStart.setDate(data.currentWeekStart.getDate() - 7);
@@ -1009,35 +1021,59 @@ document.getElementById('nextWeekBtn').addEventListener('click', () => {
   renderAll();
 });
 
-// Jump back to the current week
 document.getElementById('jumpToPresentBtn').addEventListener('click', () => {
   data.currentWeekStart = startOfWeek(new Date());
   renderAll();
 });
 
+// ---------- Auto-color: update color picker when typing a job name (#2) ----------
+
+document.getElementById('jobNameInput').addEventListener('input', () => {
+  // Only auto-update the color input if it still matches the previous suggestion
+  // (i.e., the user hasn't manually picked a color yet)
+  const colorInput = document.getElementById('jobColorInput');
+  if (!colorInput.dataset.userPicked) {
+    colorInput.value = pickUnusedColor();
+  }
+});
+
+document.getElementById('jobColorInput').addEventListener('input', () => {
+  // Mark as user-picked so we stop auto-suggesting
+  document.getElementById('jobColorInput').dataset.userPicked = '1';
+});
+
+// Reset user-picked flag after a job is added
+function resetColorPicker() {
+  const colorInput = document.getElementById('jobColorInput');
+  colorInput.dataset.userPicked = '';
+  colorInput.value = pickUnusedColor();
+}
+
 // ---------- Add job / employee events ----------
 
 document.getElementById('addJobBtn').addEventListener('click', () => {
-  const nameInput = document.getElementById('jobNameInput');
+  const nameInput     = document.getElementById('jobNameInput');
   const categoryInput = document.getElementById('jobCategoryInput');
-  const colorInput = document.getElementById('jobColorInput');
+  const colorInput    = document.getElementById('jobColorInput');
   addJob(nameInput.value, categoryInput.value, colorInput.value);
   clearInputs('jobNameInput');
+  resetColorPicker();
 });
 
 document.getElementById('jobNameInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') {
-    const nameInput = document.getElementById('jobNameInput');
+    const nameInput     = document.getElementById('jobNameInput');
     const categoryInput = document.getElementById('jobCategoryInput');
-    const colorInput = document.getElementById('jobColorInput');
+    const colorInput    = document.getElementById('jobColorInput');
     addJob(nameInput.value, categoryInput.value, colorInput.value);
     clearInputs('jobNameInput');
+    resetColorPicker();
   }
 });
 
 document.getElementById('addEmployeeBtn').addEventListener('click', () => {
-  const nameInput = document.getElementById('employeeNameInput');
-  const budgetInput = document.getElementById('employeeBudgetInput');
+  const nameInput     = document.getElementById('employeeNameInput');
+  const budgetInput   = document.getElementById('employeeBudgetInput');
   const districtInput = document.getElementById('employeeDistrictInput');
   addEmployee(nameInput.value, budgetInput.value, districtInput.value);
   clearInputs('employeeNameInput', 'employeeBudgetInput');
@@ -1045,8 +1081,8 @@ document.getElementById('addEmployeeBtn').addEventListener('click', () => {
 
 document.getElementById('employeeNameInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') {
-    const nameInput = document.getElementById('employeeNameInput');
-    const budgetInput = document.getElementById('employeeBudgetInput');
+    const nameInput     = document.getElementById('employeeNameInput');
+    const budgetInput   = document.getElementById('employeeBudgetInput');
     const districtInput = document.getElementById('employeeDistrictInput');
     addEmployee(nameInput.value, budgetInput.value, districtInput.value);
     clearInputs('employeeNameInput', 'employeeBudgetInput');
@@ -1056,65 +1092,36 @@ document.getElementById('employeeNameInput').addEventListener('keydown', e => {
 // ---------- Export CSV ----------
 
 document.getElementById('exportCsvBtn').addEventListener('click', () => {
-  const weekKey = getCurrentWeekKey();
+  const weekKey        = getCurrentWeekKey();
   const weekAssignments = getAssignmentsForWeek(weekKey);
 
-  const rows = [];
-  rows.push([
-    'Week',
-    'Employee',
-    'District',
-    'Job',
-    'Hours',
-    'EmployeeBudget',
-    'TotalAllocatedForEmployee'
-  ]);
+  const rows = [['Week', 'Employee', 'District', 'Job', 'Hours', 'EmployeeBudget', 'TotalAllocatedForEmployee']];
 
   data.employees.forEach(emp => {
     const empAssignments = weekAssignments[emp.id] || {};
-    const total = totalHoursForEmployeeWeek(weekKey, emp.id);
+    const total  = totalHoursForEmployeeWeek(weekKey, emp.id);
     const jobIds = Object.keys(empAssignments);
 
     if (jobIds.length === 0) {
-      rows.push([
-        weekKey,
-        emp.name,
-        emp.district || '',
-        '',
-        '',
-        emp.weeklyBudget,
-        total
-      ]);
+      rows.push([weekKey, emp.name, emp.district || '', '', '', emp.weeklyBudget, total]);
     } else {
       jobIds.forEach(jobId => {
-        const job = data.jobs.find(j => j.id === jobId);
+        const job     = data.jobs.find(j => j.id === jobId);
         const jobName = job ? job.name : '(deleted job)';
-        const hours = empAssignments[jobId].hours || 0;
-        rows.push([
-          weekKey,
-          emp.name,
-          emp.district || '',
-          jobName,
-          hours,
-          emp.weeklyBudget,
-          total
-        ]);
+        const hours   = empAssignments[jobId].hours || 0;
+        rows.push([weekKey, emp.name, emp.district || '', jobName, hours, emp.weeklyBudget, total]);
       });
     }
   });
 
   const csvContent = rows
-    .map(r =>
-      r
-        .map(v => `"${String(v).replace(/"/g, '""')}"`)
-        .join(',')
-    )
+    .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
     .join('\r\n');
 
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
   a.download = `week_${weekKey}.csv`;
   document.body.appendChild(a);
   a.click();
@@ -1126,24 +1133,18 @@ document.getElementById('exportCsvBtn').addEventListener('click', () => {
 
 document.getElementById('exportJsonBtn').addEventListener('click', () => {
   const exportData = {
-    employees: typeof structuredClone === 'function'
-      ? structuredClone(data.employees)
-      : JSON.parse(JSON.stringify(data.employees)),
-    jobs: typeof structuredClone === 'function'
-      ? structuredClone(data.jobs)
-      : JSON.parse(JSON.stringify(data.jobs)),
-    assignments: typeof structuredClone === 'function'
-      ? structuredClone(data.assignments)
-      : JSON.parse(JSON.stringify(data.assignments)),
+    employees: JSON.parse(JSON.stringify(data.employees)),
+    jobs:       JSON.parse(JSON.stringify(data.jobs)),
+    assignments: JSON.parse(JSON.stringify(data.assignments)),
     currentWeekStart: data.currentWeekStart.toISOString()
   };
 
   const jsonStr = JSON.stringify(exportData, null, 2);
-  const blob = new Blob([jsonStr], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'planner_data.json';
+  const blob    = new Blob([jsonStr], { type: 'application/json' });
+  const url     = URL.createObjectURL(blob);
+  const a       = document.createElement('a');
+  a.href        = url;
+  a.download    = 'planner_data.json';
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -1158,26 +1159,17 @@ document.getElementById('importJsonInput').addEventListener('change', e => {
   reader.onload = evt => {
     try {
       const imported = JSON.parse(evt.target.result);
-      if (!Array.isArray(imported.employees)) {
-        alert('Invalid JSON format: employees must be an array.');
-        return;
-      }
-      if (!Array.isArray(imported.jobs)) {
-        alert('Invalid JSON format: jobs must be an array.');
-        return;
-      }
+      if (!Array.isArray(imported.employees)) { alert('Invalid JSON format: employees must be an array.'); return; }
+      if (!Array.isArray(imported.jobs))      { alert('Invalid JSON format: jobs must be an array.'); return; }
       if (typeof imported.assignments !== 'object' || imported.assignments === null) {
-        alert('Invalid JSON format: assignments must be an object.');
-        return;
+        alert('Invalid JSON format: assignments must be an object.'); return;
       }
-
-      data.employees = imported.employees;
-      data.jobs = imported.jobs;
-      data.assignments = imported.assignments;
+      data.employees        = imported.employees;
+      data.jobs             = imported.jobs;
+      data.assignments      = imported.assignments;
       data.currentWeekStart = imported.currentWeekStart
         ? new Date(imported.currentWeekStart)
         : startOfWeek(new Date());
-
       renderAll();
     } catch (err) {
       console.error(err);
@@ -1190,45 +1182,36 @@ document.getElementById('importJsonInput').addEventListener('change', e => {
 
 // ---------- Resizable columns ----------
 
-// These functions let the user drag the vertical dividers
-// to resize the chart, jobs, and employees columns.
 function makeResizable(divider, leftCol, rightCol) {
   let dragging = false;
-
   divider.addEventListener('mousedown', () => (dragging = true));
   window.addEventListener('mouseup', () => (dragging = false));
 
   window.addEventListener('mousemove', e => {
     if (!dragging) return;
-
     const containerRect = document.querySelector('.container').getBoundingClientRect();
-    const totalWidth = containerRect.width;
-    const x = e.clientX - containerRect.left;
+    const totalWidth    = containerRect.width;
+    const x             = e.clientX - containerRect.left;
 
     if (divider.id === 'divider1') {
-      // Divider between chart and jobs
-      const min = 150;
-      const max = totalWidth - 300;
-      const leftWidth = Math.max(min, Math.min(x, max));
+      const min           = 150;
+      const max           = totalWidth - 300;
+      const leftWidth     = Math.max(min, Math.min(x, max));
       const employeesWidth = document.querySelector('.employees-column').offsetWidth;
-      const divider2Width = document.getElementById('divider2').offsetWidth;
-      const rightWidth = totalWidth - leftWidth - divider.offsetWidth - employeesWidth - divider2Width;
+      const divider2Width  = document.getElementById('divider2').offsetWidth;
+      const rightWidth    = totalWidth - leftWidth - divider.offsetWidth - employeesWidth - divider2Width;
       if (rightWidth < 150) return;
-      leftCol.style.width = leftWidth + 'px';
+      leftCol.style.width  = leftWidth + 'px';
       rightCol.style.width = rightWidth + 'px';
     } else if (divider.id === 'divider2') {
-      // Divider between jobs and employees
-      const chartWidth = document.querySelector('.chart-column').offsetWidth;
+      const chartWidth    = document.querySelector('.chart-column').offsetWidth;
       const divider1Width = document.getElementById('divider1').offsetWidth;
-      const min = 150;
-      const max = totalWidth - chartWidth - 300;
-      const leftWidth = Math.max(
-        min,
-        Math.min(x - chartWidth - divider1Width, max)
-      );
-      const rightWidth = totalWidth - chartWidth - divider1Width - divider.offsetWidth - leftWidth;
+      const min           = 150;
+      const max           = totalWidth - chartWidth - 300;
+      const leftWidth     = Math.max(min, Math.min(x - chartWidth - divider1Width, max));
+      const rightWidth    = totalWidth - chartWidth - divider1Width - divider.offsetWidth - leftWidth;
       if (rightWidth < 150) return;
-      leftCol.style.width = leftWidth + 'px';
+      leftCol.style.width  = leftWidth + 'px';
       rightCol.style.width = rightWidth + 'px';
     }
 
@@ -1236,7 +1219,6 @@ function makeResizable(divider, leftCol, rightCol) {
   });
 }
 
-// Hook up the two dividers
 makeResizable(
   document.getElementById('divider1'),
   document.querySelector('.chart-column'),
@@ -1248,7 +1230,7 @@ makeResizable(
   document.querySelector('.employees-column')
 );
 
-// ---------- Render everything once at startup ----------
+// ---------- Initial render ----------
 
 function renderAll() {
   renderWeekLabel();
@@ -1256,5 +1238,10 @@ function renderAll() {
   renderEmployees();
   forceChartUpdate();
 }
+
+// Set initial auto-picked color in the color input
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('jobColorInput').value = pickUnusedColor();
+});
 
 renderAll();

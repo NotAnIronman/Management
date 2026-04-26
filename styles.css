@@ -1,17 +1,285 @@
 /* ----------------------------------------------------------
+   CSS VARIABLES — Light & Dark Theme
+---------------------------------------------------------- */
+
+:root,
+[data-theme="light"] {
+  --bg-page:         #f3f4f6;
+  --bg-column:       #ffffff;
+  --bg-section:      #fafafa;
+  --bg-cat-header:   #e5e7eb;
+  --bg-subtask-header: #f3f4f6;
+  --bg-input:        #ffffff;
+  --bg-gauge:        #e5e7eb;
+  --bg-dropzone:     transparent;
+  --bg-dropzone-over:#eff6ff;
+  --bg-employee-card:#ffffff;
+  --bg-settings:     #ffffff;
+
+  --border-color:    #d1d5db;
+  --border-section:  #e5e7eb;
+  --divider-color:   #d1d5db;
+  --divider-hover:   #9ca3af;
+
+  --text-primary:    #111827;
+  --text-secondary:  #4b5563;
+  --text-muted:      #6b7280;
+
+  --btn-bg:          #3b82f6;
+  --btn-hover:       #2563eb;
+  --btn-text:        #ffffff;
+
+  --header-bg:       #1e3a5f;
+  --header-text:     #ffffff;
+
+  --toggle-track:    #d1d5db;
+  --toggle-thumb:    #ffffff;
+  --toggle-active:   #3b82f6;
+
+  --settings-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  --canvas-bg:       #ffffff;
+}
+
+[data-theme="dark"] {
+  --bg-page:         #111827;
+  --bg-column:       #1f2937;
+  --bg-section:      #1a2535;
+  --bg-cat-header:   #374151;
+  --bg-subtask-header:#2d3748;
+  --bg-input:        #374151;
+  --bg-gauge:        #374151;
+  --bg-dropzone:     transparent;
+  --bg-dropzone-over:#1e3a5f;
+  --bg-employee-card:#263043;
+  --bg-settings:     #1f2937;
+
+  --border-color:    #4b5563;
+  --border-section:  #374151;
+  --divider-color:   #4b5563;
+  --divider-hover:   #6b7280;
+
+  --text-primary:    #f9fafb;
+  --text-secondary:  #d1d5db;
+  --text-muted:      #9ca3af;
+
+  --btn-bg:          #3b82f6;
+  --btn-hover:       #2563eb;
+  --btn-text:        #ffffff;
+
+  --header-bg:       #0f1f35;
+  --header-text:     #e5e7eb;
+
+  --toggle-track:    #4b5563;
+  --toggle-thumb:    #ffffff;
+  --toggle-active:   #3b82f6;
+
+  --settings-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  --canvas-bg:       #1f2937;
+}
+
+/* ----------------------------------------------------------
    GLOBAL LAYOUT
 ---------------------------------------------------------- */
 
 body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    background: #f3f4f6;
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: var(--bg-page);
+  color: var(--text-primary);
+  transition: background 0.2s, color 0.2s;
 }
 
 .container {
-    display: flex;
-    height: 100vh;
-    overflow: hidden;
+  display: flex;
+  height: calc(100vh - 56px - 48px); /* header + footer */
+  overflow: hidden;
+}
+
+/* ----------------------------------------------------------
+   HEADER
+---------------------------------------------------------- */
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--header-bg);
+  color: var(--header-text);
+  height: 56px;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 100;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 18px;
+  white-space: nowrap;
+}
+
+/* ----------------------------------------------------------
+   WEEK CONTROLS
+---------------------------------------------------------- */
+
+.week-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.week-nav-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.week-jump-row {
+  display: flex;
+  justify-content: center;
+}
+
+.week-jump-row button {
+  font-size: 11px;
+  padding: 2px 10px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: var(--header-text);
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.week-jump-row button:hover {
+  background: rgba(255,255,255,0.25);
+}
+
+#weekLabel {
+  font-size: 15px;
+  font-weight: bold;
+  color: var(--header-text);
+  white-space: nowrap;
+}
+
+.week-nav-row button {
+  padding: 4px 10px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: var(--header-text);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.week-nav-row button:hover {
+  background: rgba(255,255,255,0.25);
+}
+
+/* ----------------------------------------------------------
+   SETTINGS BUTTON & MENU
+---------------------------------------------------------- */
+
+.header-settings {
+  position: relative;
+}
+
+.settings-btn {
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: var(--header-text);
+  font-size: 20px;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
+}
+
+.settings-btn:hover {
+  background: rgba(255,255,255,0.25);
+}
+
+.settings-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--bg-settings);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: var(--settings-shadow);
+  min-width: 220px;
+  z-index: 9999;
+  padding: 8px 0;
+}
+
+.settings-menu.hidden {
+  display: none;
+}
+
+.settings-item {
+  padding: 8px 16px;
+}
+
+.settings-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  color: var(--text-primary);
+  gap: 12px;
+  cursor: default;
+}
+
+/* ----------------------------------------------------------
+   TOGGLE SWITCH
+---------------------------------------------------------- */
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--toggle-track);
+  border-radius: 22px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  left: 3px;
+  top: 3px;
+  background: var(--toggle-thumb);
+  border-radius: 50%;
+  transition: transform 0.2s;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background: var(--toggle-active);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  transform: translateX(18px);
 }
 
 /* ----------------------------------------------------------
@@ -21,26 +289,34 @@ body {
 .chart-column,
 .jobs-column,
 .employees-column {
-    overflow-y: auto;
-    padding: 10px;
-    background: white;
+  overflow-y: auto;
+  padding: 10px;
+  background: var(--bg-column);
+  color: var(--text-primary);
+  transition: background 0.2s, color 0.2s;
 }
 
 .chart-column {
-    width: 33%;
-    min-width: 250px;
-    border-right: 3px solid #d1d5db;
+  width: 33%;
+  min-width: 250px;
+  border-right: 3px solid var(--divider-color);
 }
 
 .jobs-column {
-    width: 33%;
-    min-width: 250px;
-    border-right: 3px solid #d1d5db;
+  width: 33%;
+  min-width: 250px;
+  border-right: 3px solid var(--divider-color);
 }
 
 .employees-column {
-    width: 34%;
-    min-width: 250px;
+  width: 34%;
+  min-width: 250px;
+}
+
+.chart-column h2,
+.jobs-column h2,
+.employees-column h2 {
+  color: var(--text-primary);
 }
 
 /* ----------------------------------------------------------
@@ -49,24 +325,15 @@ body {
 
 #divider1,
 #divider2 {
-    width: 6px;
-    background: #d1d5db;
-    cursor: col-resize;
+  width: 6px;
+  background: var(--divider-color);
+  cursor: col-resize;
+  transition: background 0.2s;
 }
 
 #divider1:hover,
 #divider2:hover {
-    background: #9ca3af;
-}
-
-/* ----------------------------------------------------------
-   WEEK HEADER
----------------------------------------------------------- */
-
-#weekLabel {
-    font-size: 18px;
-    font-weight: bold;
-    margin-bottom: 10px;
+  background: var(--divider-hover);
 }
 
 /* ----------------------------------------------------------
@@ -74,39 +341,51 @@ body {
 ---------------------------------------------------------- */
 
 .job-category-section {
-    margin-bottom: 12px;
-    border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    background: #fafafa;
+  margin-bottom: 12px;
+  border: 1px solid var(--border-section);
+  border-radius: 6px;
+  background: var(--bg-section);
 }
 
 .job-category-header {
-    font-weight: bold;
-    padding: 6px 8px;
-    background: #e5e7eb;
-    cursor: pointer;
-    border-radius: 6px 6px 0 0;
+  font-weight: bold;
+  padding: 6px 8px;
+  background: var(--bg-cat-header);
+  color: var(--text-primary);
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
 }
 
 .job-category-section.collapsed .job-category-list {
-    display: none;
+  display: none;
 }
 
 .item {
-    border-bottom: 1px solid #e5e7eb;
-    padding: 6px;
+  border-bottom: 1px solid var(--border-section);
+  padding: 6px;
+  background: var(--bg-section);
 }
 
 .item-header-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .legend-color {
-    width: 14px;
-    height: 14px;
-    border-radius: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* ----------------------------------------------------------
+   JOB COLLAPSE — Toggle hides subtasks container only
+---------------------------------------------------------- */
+
+/* When a job item is collapsed, hide its subtasks div */
+.item.job-collapsed .job-subtasks {
+  display: none;
 }
 
 /* ----------------------------------------------------------
@@ -114,41 +393,45 @@ body {
 ---------------------------------------------------------- */
 
 .job-subtasks {
-    margin-top: 6px;
-    padding-left: 10px;
+  margin-top: 6px;
+  padding-left: 10px;
 }
 
 .job-subtask-category {
-    margin-bottom: 6px;
+  margin-bottom: 6px;
 }
 
 .job-subtask-category-header {
-    font-weight: bold;
-    cursor: pointer;
-    padding: 4px;
-    background: #f3f4f6;
-    border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 4px;
+  background: var(--bg-subtask-header);
+  color: var(--text-primary);
+  border-radius: 4px;
 }
 
-.job-subtask-category.collapsed .job-subtask-items {
-    display: none;
+/* When a subtask group is collapsed, hide items AND the add row */
+.job-subtask-category.collapsed .job-subtask-items,
+.job-subtask-category.collapsed .job-subtask-add {
+  display: none;
 }
 
 .job-subtask-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 3px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 0;
 }
 
-/* FIXED DOT SPACING */
 .job-subtask-dot {
-    flex: 0 0 auto;
-    margin-right: 4px;
+  flex: 0 0 auto;
+  margin-right: 4px;
+  color: var(--text-muted);
 }
 
 .job-subtask-name {
-    flex: 1 1 auto;
+  flex: 1 1 auto;
+  color: var(--text-primary);
 }
 
 /* ----------------------------------------------------------
@@ -156,33 +439,44 @@ body {
 ---------------------------------------------------------- */
 
 .district-header {
-    font-weight: bold;
-    font-size: 16px;
-    margin-top: 12px;
-    margin-bottom: 6px;
+  font-weight: bold;
+  font-size: 16px;
+  margin-top: 12px;
+  margin-bottom: 6px;
+  color: var(--text-primary);
 }
 
 .employee-card {
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    padding: 8px;
-    margin-bottom: 10px;
-    background: #ffffff;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 8px;
+  margin-bottom: 10px;
+  background: var(--bg-employee-card);
 }
 
 .employee-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .employee-name {
-    font-weight: bold;
+  font-weight: bold;
+  color: var(--text-primary);
 }
 
 .employee-budget {
-    font-size: 12px;
-    color: #4b5563;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* When employee card is collapsed, hide gauge, gauge-label, and dropzone */
+.employee-card.collapsed .gauge,
+.employee-card.collapsed .gauge-label,
+.employee-card.collapsed .employee-dropzone {
+  display: none;
 }
 
 /* ----------------------------------------------------------
@@ -190,20 +484,21 @@ body {
 ---------------------------------------------------------- */
 
 .subtask-row {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 2px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 0;
 }
 
-/* FIXED DOT SPACING */
 .employee-subtask-dot {
-    flex: 0 0 auto;
-    margin-right: 4px;
+  flex: 0 0 auto;
+  margin-right: 4px;
+  color: var(--text-muted);
 }
 
 .employee-subtask-name {
-    flex: 1 1 auto;
+  flex: 1 1 auto;
+  color: var(--text-primary);
 }
 
 /* ----------------------------------------------------------
@@ -211,15 +506,16 @@ body {
 ---------------------------------------------------------- */
 
 .employee-dropzone {
-    border: 2px dashed #d1d5db;
-    padding: 6px;
-    margin-top: 8px;
-    border-radius: 6px;
+  border: 2px dashed var(--border-color);
+  padding: 6px;
+  margin-top: 8px;
+  border-radius: 6px;
+  background: var(--bg-dropzone);
 }
 
 .employee-dropzone.over {
-    border-color: #3b82f6;
-    background: #eff6ff;
+  border-color: #3b82f6;
+  background: var(--bg-dropzone-over);
 }
 
 /* ----------------------------------------------------------
@@ -227,23 +523,27 @@ body {
 ---------------------------------------------------------- */
 
 .gauge {
-    position: relative;
-    height: 18px;
-    background: #e5e7eb;
-    border-radius: 4px;
-    overflow: hidden;
-    margin: 6px 0;
+  position: relative;
+  height: 18px;
+  background: var(--bg-gauge);
+  border-radius: 4px;
+  overflow: hidden;
+  margin: 6px 0;
 }
 
 .gauge-fill {
-    position: absolute;
-    top: 0;
-    bottom: 0;
+  position: absolute;
+  top: 0;
+  bottom: 0;
 }
 
-/* UNUTILIZED TIME */
 .gauge-fill.unutilized {
-    background: #9ca3af !important;
+  background: #9ca3af !important;
+}
+
+.gauge-label {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 /* ----------------------------------------------------------
@@ -251,18 +551,30 @@ body {
 ---------------------------------------------------------- */
 
 #projectChart {
-    width: 100%;
-    height: 300px;
-    background: #ffffff;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
+  width: 100%;
+  height: 300px;
+  background: var(--canvas-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+
+.chart-header-line {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
 }
 
 .legend-item {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin: 4px 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0;
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.chart-legend {
+  margin-top: 8px;
 }
 
 /* ----------------------------------------------------------
@@ -272,20 +584,96 @@ body {
 input[type="text"],
 input[type="number"],
 select {
-    padding: 4px;
-    border: 1px solid #d1d5db;
-    border-radius: 4px;
+  padding: 4px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+input[type="text"]::placeholder,
+input[type="number"]::placeholder {
+  color: var(--text-muted);
 }
 
 button {
-    padding: 4px 8px;
-    border: none;
-    background: #3b82f6;
-    color: white;
-    border-radius: 4px;
-    cursor: pointer;
+  padding: 4px 8px;
+  border: none;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border-radius: 4px;
+  cursor: pointer;
 }
 
 button:hover {
-    background: #2563eb;
+  background: var(--btn-hover);
+}
+
+.form-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+
+/* ----------------------------------------------------------
+   FOOTER
+---------------------------------------------------------- */
+
+.toolbar-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  background: var(--bg-column);
+  border-top: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  z-index: 50;
+}
+
+.toolbar {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px;
+  align-items: center;
+}
+
+.toolbar label {
+  color: var(--text-primary);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ----------------------------------------------------------
+   ASSIGNMENT
+---------------------------------------------------------- */
+
+.assignment {
+  margin-bottom: 6px;
+  padding: 4px;
+  border-left: 3px solid var(--border-color);
+}
+
+.assignment-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.assignment-top span {
+  font-weight: bold;
+  color: var(--text-primary);
+  flex: 1;
+}
+
+.subtask-list {
+  margin-top: 4px;
+  padding-left: 8px;
 }
