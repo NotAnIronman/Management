@@ -651,8 +651,33 @@ button:hover {
 }
 
 /* ----------------------------------------------------------
-   ASSIGNMENT
+   BURN-DOWN CHART
 ---------------------------------------------------------- */
+
+.burn-down-title {
+  margin: 16px 0 6px;
+  font-size: 14px;
+  font-weight: bold;
+  color: var(--text-primary);
+  border-top: 1px solid var(--border-color);
+  padding-top: 12px;
+}
+
+#burnDownChart {
+  width: 100%;
+  height: 220px;
+  background: var(--canvas-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+
+/* Hours Budget input in job header row */
+.job-budget-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 
 .assignment {
   margin-bottom: 6px;
