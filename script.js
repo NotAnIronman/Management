@@ -393,7 +393,7 @@ function renderJobs() {
         nameInput.placeholder = 'Subtask name';
 
         // Color picker for new subtasks 
-        //const addColorInput = document.createElement('input');
+        const addColorInput = document.createElement('input');
         //addColorInput.type  = 'color';
         addColorInput.value = job.color || DEFAULT_COLOR;
 
