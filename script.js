@@ -239,7 +239,7 @@ function renderJobs() {
         forceChartUpdate();
       };
 
-      // Toggle button — now correctly uses job-collapsed class (#5)
+      // Toggle button
       const collapseBtn = document.createElement('button');
       collapseBtn.textContent = 'Toggle';
       collapseBtn.onclick = () => {
@@ -306,7 +306,7 @@ function renderJobs() {
         catHeader.textContent = subCat;
         catHeader.onclick = () => {
           catBlock.classList.toggle('collapsed');
-          // Persist collapsed state per group (#6)
+          // Persist collapsed state
           job.subtaskGroupCollapsed = job.subtaskGroupCollapsed || {};
           job.subtaskGroupCollapsed[subCat] = catBlock.classList.contains('collapsed');
         };
@@ -394,7 +394,7 @@ function renderJobs() {
 
         // Color picker for new subtasks — defaults to job color, can be customized
         const addColorInput = document.createElement('input');
-        addColorInput.type  = 'color';
+        //addColorInput.type  = 'color'; //Removed color selector from job add tree, now click the dot instead.
         addColorInput.value = job.color || DEFAULT_COLOR;
 
         const addBtn = document.createElement('button');
