@@ -392,10 +392,10 @@ function renderJobs() {
         const nameInput = document.createElement('input');
         nameInput.placeholder = 'Subtask name';
 
-        // Color picker for new subtasks — defaults to job color, can be customized
+        // Color picker for new subtasks 
         //const addColorInput = document.createElement('input');
-        //addColorInput.type  = 'color'; //Removed color selector from job add tree, now click the dot instead.
-        //addColorInput.value = job.color || DEFAULT_COLOR;
+        //addColorInput.type  = 'color';
+        addColorInput.value = job.color || DEFAULT_COLOR;
 
         const addBtn = document.createElement('button');
         addBtn.textContent = 'Add';
