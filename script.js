@@ -1,14 +1,3 @@
-// Estimation Management Planner - script.js
-// -----------------------------------------------------------
-// Changes from original:
-//  1. Dark/Light mode toggle (settings gear in header)
-//  2. Auto-pick unused color when adding a new job
-//  3. Drag-and-drop a single subtask → creates job with ONLY that subtask
-//  4. "Jump to Present" button moved below date range (HTML change)
-//  5. Job Toggle button now correctly collapses subtasks (uses job-collapsed class)
-//  6. Collapsing a subtask group also hides the Add Subtask row
-//  7. Subtask color locked to job color; only manually-added employee subtasks get a color picker
-
 // ---------- Constants ----------
 const DEFAULT_COLOR = '#03bafc';
 const DEFAULT_DISTRICT = 'Electrical';
@@ -52,6 +41,33 @@ function formatDate(d) {
 
 function getWeekKey(date) {
   return formatDate(startOfWeek(date));
+}
+
+// ---------- Color Orb helper ----------
+// Creates a clickable orb that wraps a hidden <input type="color">.
+// onChange(hexColor) is called whenever the user picks a new color.
+// isCustom=true adds the dashed-border "custom subtask" style.
+function makeColorOrb(initialColor, onChange, isCustom = false) {
+  const orb = document.createElement('span');
+  orb.className = 'color-orb' + (isCustom ? ' custom-subtask' : '');
+  orb.style.background = initialColor;
+  orb.title = 'Click to change color';
+
+  const picker = document.createElement('input');
+  picker.type = 'color';
+  picker.value = initialColor;
+  picker.style.cssText = 'position:absolute;opacity:0;width:0;height:0;pointer-events:none;';
+  picker.addEventListener('change', () => {
+    orb.style.background = picker.value;
+    onChange(picker.value);
+  });
+
+  orb.appendChild(picker);
+  orb.addEventListener('click', e => {
+    e.stopPropagation();
+    picker.click();
+  });
+  return orb;
 }
 
 // ---------- Auto-color helper (#2) ----------
@@ -214,27 +230,23 @@ function renderJobs() {
       const span = document.createElement('span');
       span.textContent = job.name;
 
-      // Job-level color picker — syncs subtasks that haven't been individually customized
-      const colorInput = document.createElement('input');
-      colorInput.type = 'color';
-      colorInput.value = job.color || DEFAULT_COLOR;
-      colorInput.onchange = () => {
+      // Job-level color orb — syncs subtasks that haven't been individually customized
+      const jobColorOrb = makeColorOrb(job.color || DEFAULT_COLOR, newColor => {
         const oldColor = (job.color || DEFAULT_COLOR).toLowerCase();
-        job.color = colorInput.value;
-        colorBox.style.background = colorInput.value;
+        job.color = newColor;
+        colorBox.style.background = newColor;
         // Only sync subtasks whose color still matches the OLD job color
-        // (i.e. they were never individually customized)
         if (job.subtasks) {
           job.subtasks.forEach(st => {
             if (!st.color || st.color.toLowerCase() === oldColor) {
-              st.color = colorInput.value;
+              st.color = newColor;
             }
           });
         }
         renderJobs();
         renderEmployees();
         forceChartUpdate();
-      };
+      });
 
       const categorySelect = document.createElement('select');
       ['Active', 'Upcoming', 'Complete', 'Other'].forEach(c => {
@@ -281,7 +293,7 @@ function renderJobs() {
 
       headerRow.appendChild(colorBox);
       headerRow.appendChild(span);
-      headerRow.appendChild(colorInput);
+      headerRow.appendChild(jobColorOrb);
       headerRow.appendChild(categorySelect);
       headerRow.appendChild(budgetLabel);
       headerRow.appendChild(budgetInput);
@@ -330,7 +342,7 @@ function renderJobs() {
                 subtaskId: st.id || null,
                 name: st.name,
                 category: st.category,
-                color: st.color || job.color || DEFAULT_COLOR  // carry subtask's own color
+                color: st.color || job.color || DEFAULT_COLOR
               };
               e.dataTransfer.setData('application/json', JSON.stringify(payload));
             });
@@ -343,30 +355,10 @@ function renderJobs() {
             nameSpan.className = 'job-subtask-name';
             nameSpan.textContent = st.name;
 
-            // Clickable color swatch — clicking it opens the hidden color picker
-            const stColorPicker = document.createElement('input');
-            stColorPicker.type = 'color';
-            stColorPicker.value = st.color || job.color || DEFAULT_COLOR;
-            stColorPicker.style.cssText = 'position:absolute;opacity:0;width:0;height:0;pointer-events:none;';
-            stColorPicker.onchange = () => {
-              st.color = stColorPicker.value;
-              colorDot.style.background = stColorPicker.value;
+            const stOrb = makeColorOrb(st.color || job.color || DEFAULT_COLOR, newColor => {
+              st.color = newColor;
               renderEmployees();
               forceChartUpdate();
-            };
-
-            const colorDot = document.createElement('span');
-            colorDot.style.cssText = `
-              display:inline-block;width:12px;height:12px;
-              border-radius:50%;background:${st.color || job.color || DEFAULT_COLOR};
-              flex-shrink:0;cursor:pointer;border:1px solid rgba(0,0,0,0.2);
-              position:relative;
-            `;
-            colorDot.title = 'Click to change subtask color';
-            colorDot.appendChild(stColorPicker);
-            colorDot.addEventListener('click', e => {
-              e.stopPropagation();
-              stColorPicker.click();
             });
 
             const delBtn = document.createElement('button');
@@ -379,7 +371,7 @@ function renderJobs() {
 
             row.appendChild(dot);
             row.appendChild(nameSpan);
-            row.appendChild(colorDot);
+            row.appendChild(stOrb);
             row.appendChild(delBtn);
             items.appendChild(row);
           });
@@ -391,11 +383,6 @@ function renderJobs() {
         const nameInput = document.createElement('input');
         nameInput.placeholder = 'Subtask name';
 
-        // Color picker for new subtasks — defaults to job color, can be customized
-        const addColorInput = document.createElement('input');
-        addColorInput.type  = 'color';
-        addColorInput.value = job.color || DEFAULT_COLOR;
-
         const addBtn = document.createElement('button');
         addBtn.textContent = 'Add';
         addBtn.onclick = () => {
@@ -405,15 +392,13 @@ function renderJobs() {
             id: uuid(),
             name: nameInput.value.trim(),
             category: subCat,
-            color: addColorInput.value
+            color: job.color || DEFAULT_COLOR  // inherits job color; click orb to customize
           });
           nameInput.value = '';
-          addColorInput.value = job.color || DEFAULT_COLOR; // reset to job color
           renderJobs();
         };
 
         addRow.appendChild(nameInput);
-        addRow.appendChild(addColorInput);
         addRow.appendChild(addBtn);
 
         catBlock.appendChild(catHeader);
@@ -759,27 +744,38 @@ function renderEmployees() {
             forceChartUpdate();
           };
 
-          // Only manually-added employee subtasks get a color picker (#7).
-          // Dragged-from-job subtasks have a sourceId — show a swatch only.
+          // Resolve the display color:
+          // - For dragged-from-job subtasks (sourceId present): always look up the
+          //   current color from the source job subtask so changes propagate instantly.
+          // - For manually-added subtasks: use sub.color (user controls it).
+          let resolvedColor = sub.color || (job.color || DEFAULT_COLOR);
+          if (sub.sourceId) {
+            const sourceSubtask = (job.subtasks || []).find(s => s.id === sub.sourceId);
+            if (sourceSubtask) {
+              resolvedColor = sourceSubtask.color || job.color || DEFAULT_COLOR;
+              // Keep stored color in sync so gauge is correct too
+              sub.color = resolvedColor;
+            }
+          }
+
+          // Both dragged and custom subtasks get an orb.
+          // Custom subtasks (no sourceId) get a dashed border and an active color picker.
+          // Dragged subtasks get a solid border and are read-only (color follows job tree).
           let colorEl;
           if (!sub.sourceId) {
-            // Manually added in employee — allow color change
-            colorEl = document.createElement('input');
-            colorEl.type  = 'color';
-            colorEl.value = sub.color || (job.color || DEFAULT_COLOR);
-            colorEl.onchange = () => {
-              sub.color = colorEl.value;
+            // Manually added — clickable, dashed border
+            colorEl = makeColorOrb(resolvedColor, newColor => {
+              sub.color = newColor;
               renderEmployees();
               forceChartUpdate();
-            };
+            }, true /* isCustom */);
           } else {
-            // Dragged from job — show read-only color swatch
+            // Dragged from job — read-only orb, no picker
             colorEl = document.createElement('span');
-            colorEl.style.cssText = `
-              display:inline-block;width:12px;height:12px;
-              border-radius:50%;background:${sub.color || job.color || DEFAULT_COLOR};
-              flex-shrink:0;border:1px solid rgba(0,0,0,0.15);
-            `;
+            colorEl.className = 'color-orb';
+            colorEl.style.background = resolvedColor;
+            colorEl.style.cursor = 'default';
+            colorEl.title = 'Color follows job tree';
           }
 
           const del = document.createElement('button');
@@ -1289,25 +1285,36 @@ document.getElementById('jumpToPresentBtn').addEventListener('click', () => {
 
 // ---------- Auto-color: update color picker when typing a job name (#2) ----------
 
+// Keep the orb background in sync with the hidden input
+const jobColorOrbEl = document.getElementById('jobColorOrb');
+const jobColorInputEl = document.getElementById('jobColorInput');
+if (jobColorOrbEl && jobColorInputEl) {
+  jobColorInputEl.addEventListener('input', () => {
+    jobColorOrbEl.style.background = jobColorInputEl.value;
+    jobColorInputEl.dataset.userPicked = '1';
+  });
+  jobColorOrbEl.addEventListener('click', e => {
+    e.stopPropagation();
+    jobColorInputEl.click();
+  });
+}
+
 document.getElementById('jobNameInput').addEventListener('input', () => {
-  // Only auto-update the color input if it still matches the previous suggestion
-  // (i.e., the user hasn't manually picked a color yet)
   const colorInput = document.getElementById('jobColorInput');
   if (!colorInput.dataset.userPicked) {
-    colorInput.value = pickUnusedColor();
+    const next = pickUnusedColor();
+    colorInput.value = next;
+    if (jobColorOrbEl) jobColorOrbEl.style.background = next;
   }
-});
-
-document.getElementById('jobColorInput').addEventListener('input', () => {
-  // Mark as user-picked so we stop auto-suggesting
-  document.getElementById('jobColorInput').dataset.userPicked = '1';
 });
 
 // Reset user-picked flag after a job is added
 function resetColorPicker() {
   const colorInput = document.getElementById('jobColorInput');
   colorInput.dataset.userPicked = '';
-  colorInput.value = pickUnusedColor();
+  const next = pickUnusedColor();
+  colorInput.value = next;
+  if (jobColorOrbEl) jobColorOrbEl.style.background = next;
 }
 
 // ---------- Add job / employee events ----------
