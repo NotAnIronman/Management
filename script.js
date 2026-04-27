@@ -260,6 +260,7 @@ function renderJobs() {
 
       const removeBtn = document.createElement('button');
       removeBtn.textContent = 'X';
+      removeBtn.className = "remove-job-btn";
       removeBtn.onclick = () => { removeJob(job.id); };
 
       // Hours budget input
