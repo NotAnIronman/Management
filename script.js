@@ -394,8 +394,10 @@ function renderJobs() {
 
         // Color picker for new subtasks 
         const addColorInput = document.createElement('input');
-        //addColorInput.type  = 'color';
+        addColorInput.type = 'color';
         addColorInput.value = job.color || DEFAULT_COLOR;
+        addColorInput.style.display = "none"; // hides it
+
 
         const addBtn = document.createElement('button');
         addBtn.textContent = 'Add';
