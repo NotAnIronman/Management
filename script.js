@@ -1,14 +1,3 @@
-// Estimation Management Planner - script.js
-// -----------------------------------------------------------
-// Changes from original:
-//  1. Dark/Light mode toggle (settings gear in header)
-//  2. Auto-pick unused color when adding a new job
-//  3. Drag-and-drop a single subtask → creates job with ONLY that subtask
-//  4. "Jump to Present" button moved below date range (HTML change)
-//  5. Job Toggle button now correctly collapses subtasks (uses job-collapsed class)
-//  6. Collapsing a subtask group also hides the Add Subtask row
-//  7. Subtask color locked to job color; only manually-added employee subtasks get a color picker
-
 // ---------- Constants ----------
 const DEFAULT_COLOR = '#03bafc';
 const DEFAULT_DISTRICT = 'Electrical';
@@ -260,7 +249,6 @@ function renderJobs() {
 
       const removeBtn = document.createElement('button');
       removeBtn.textContent = 'X';
-      removeBtn.className = "remove-job-btn";
       removeBtn.onclick = () => { removeJob(job.id); };
 
       // Hours budget input
