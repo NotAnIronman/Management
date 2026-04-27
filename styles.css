@@ -375,10 +375,7 @@ header h1 {
 
 .item-header-row button {
     padding: 2px 6px;
-}
-
-.item-header-row .remove-job-btn {
-    margin-left: auto; /* pushes it to the far right */
+    margin-left: auto;
 }
 
 .legend-color {
