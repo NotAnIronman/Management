@@ -482,12 +482,8 @@ function renderEmployees() {
       gauge.className = 'gauge';
       if (pct > 100) gauge.classList.add('over-budget');
 
-      const empAssignments = getEmployeeAssignmentsForWeek(weekKey, emp.id);
-
-      // Scale the bar against whichever is larger: actual hours worked OR the budget.
-      // This ensures over-budget hours are never clipped — the colored fills simply
-      // extend past the budget marker, which is drawn as a white tick on the bar.
-      const gaugeMax = Math.max(total, emp.weeklyBudget > 0 ? emp.weeklyBudget : 0, 1);
+      const empAssignments  = getEmployeeAssignmentsForWeek(weekKey, emp.id);
+      const totalCapacity   = emp.weeklyBudget > 0 ? emp.weeklyBudget : (total || 1);
       let offset = 0;
 
       Object.entries(empAssignments).forEach(([jobId, a]) => {
@@ -497,15 +493,15 @@ function renderEmployees() {
         const job       = data.jobs.find(j => j.id === jobId);
         const baseColor = job && job.color ? job.color : DEFAULT_COLOR;
 
-        const parentPctOfTotal = (parentHours / gaugeMax) * 100;
+        const parentPctOfTotal = (parentHours / totalCapacity) * 100;
         const subtasks         = a.subtasks || [];
         const totalSubHours    = subtasks.reduce((s, sub) => s + (sub.hours || 0), 0);
 
         if (subtasks.length === 0 || totalSubHours <= 0) {
           const fill = document.createElement('div');
           fill.className = 'gauge-fill';
-          fill.style.left       = offset + '%';
-          fill.style.width      = parentPctOfTotal + '%';
+          fill.style.left      = offset + '%';
+          fill.style.width     = parentPctOfTotal + '%';
           fill.style.background = baseColor;
           gauge.appendChild(fill);
           offset += parentPctOfTotal;
@@ -516,16 +512,17 @@ function renderEmployees() {
         let usedParentHours = 0;
 
         subtasks.forEach(sub => {
-          const rawSubHours       = sub.hours || 0;
+          const rawSubHours      = sub.hours || 0;
           if (rawSubHours <= 0) return;
           const effectiveSubHours = rawSubHours * scale;
           usedParentHours += effectiveSubHours;
-          const subPctOfTotal     = (effectiveSubHours / gaugeMax) * 100;
+          const subPctOfTotal     = (effectiveSubHours / totalCapacity) * 100;
 
           const fill = document.createElement('div');
           fill.className = 'gauge-fill';
-          fill.style.left       = offset + '%';
-          fill.style.width      = subPctOfTotal + '%';
+          fill.style.left      = offset + '%';
+          fill.style.width     = subPctOfTotal + '%';
+          // Use job color for subtask gauge; employee-added subtasks may have their own color
           fill.style.background = sub.color || baseColor;
           gauge.appendChild(fill);
           offset += subPctOfTotal;
@@ -533,44 +530,27 @@ function renderEmployees() {
 
         const remainingParentHours = Math.max(0, parentHours - usedParentHours);
         if (remainingParentHours > 0) {
-          const remainingPctOfTotal = (remainingParentHours / gaugeMax) * 100;
+          const remainingPctOfTotal = (remainingParentHours / totalCapacity) * 100;
           const fill = document.createElement('div');
           fill.className = 'gauge-fill';
-          fill.style.left       = offset + '%';
-          fill.style.width      = remainingPctOfTotal + '%';
+          fill.style.left      = offset + '%';
+          fill.style.width     = remainingPctOfTotal + '%';
           fill.style.background = baseColor;
           gauge.appendChild(fill);
-          offset += remainingParentHours / gaugeMax * 100;
+          offset += remainingPctOfTotal;
         }
       });
 
-      // Gray unutilized block — only shown when total hours < budget
-      const unutilizedHours = Math.max(0, emp.weeklyBudget - total);
+      const usedHours      = total;
+      const unutilizedHours = Math.max(0, emp.weeklyBudget - usedHours);
       if (unutilizedHours > 0) {
-        const unutilizedPct = (unutilizedHours / gaugeMax) * 100;
+        const unutilizedPct = (unutilizedHours / totalCapacity) * 100;
         const fill = document.createElement('div');
         fill.className = 'gauge-fill';
-        fill.style.left       = offset + '%';
-        fill.style.width      = unutilizedPct + '%';
+        fill.style.left      = offset + '%';
+        fill.style.width     = unutilizedPct + '%';
         fill.style.background = '#9ca3af';
         gauge.appendChild(fill);
-      }
-
-      // Budget marker line — a thin white tick showing where the budget ceiling is,
-      // visible even when hours exceed it so the overage is clear at a glance.
-      if (emp.weeklyBudget > 0 && gaugeMax > emp.weeklyBudget) {
-        const markerPct = (emp.weeklyBudget / gaugeMax) * 100;
-        const marker = document.createElement('div');
-        marker.style.cssText = `
-          position:absolute;top:0;bottom:0;
-          left:${markerPct}%;
-          width:2px;
-          background:rgba(255,255,255,0.85);
-          z-index:2;
-          pointer-events:none;
-        `;
-        marker.title = `Budget: ${emp.weeklyBudget}h`;
-        gauge.appendChild(marker);
       }
 
       // ---------- Dropzone ----------
