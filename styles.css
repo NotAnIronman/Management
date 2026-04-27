@@ -379,6 +379,18 @@ header h1 {
   flex-shrink: 0;
 }
 
+.job-drag-handle {
+    width: 14px;
+    height: 14px;
+    background: var(--border-color);
+    border-radius: 3px;
+    cursor: grab;
+    flex-shrink: 0;
+}
+.job-drag-handle:active {
+    cursor: grabbing;
+}
+
 /* ----------------------------------------------------------
    JOB COLLAPSE — Toggle hides subtasks container only
 ---------------------------------------------------------- */
@@ -511,6 +523,15 @@ header h1 {
   margin-top: 8px;
   border-radius: 6px;
   background: var(--bg-dropzone);
+}
+
+.employee-dropzone:empty::before {
+    content: "Drag a Job or Job sub-task here";
+    display: block;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 8px 0;
 }
 
 .employee-dropzone.over {
