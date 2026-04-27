@@ -385,7 +385,7 @@ function renderJobs() {
             items.appendChild(row);
           });
 
-        // Add-subtask row — hidden when group is collapsed via CSS (#6)
+        // Add-subtask row — hidden when group is collapsed
         const addRow = document.createElement('div');
         addRow.className = 'job-subtask-add';
 
@@ -393,9 +393,9 @@ function renderJobs() {
         nameInput.placeholder = 'Subtask name';
 
         // Color picker for new subtasks — defaults to job color, can be customized
-        const addColorInput = document.createElement('input');
+        //const addColorInput = document.createElement('input');
         //addColorInput.type  = 'color'; //Removed color selector from job add tree, now click the dot instead.
-        addColorInput.value = job.color || DEFAULT_COLOR;
+        //addColorInput.value = job.color || DEFAULT_COLOR;
 
         const addBtn = document.createElement('button');
         addBtn.textContent = 'Add';
