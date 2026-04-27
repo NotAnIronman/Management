@@ -279,8 +279,20 @@ function renderJobs() {
         forceChartUpdate();
       };
 
+      //Add drag handle
+      const dragHandle = document.createElement("div");
+      dragHandle.className = "job-drag-handle";
+      
+      // Prevent handle from blocking dragstart on the parent
+      dragHandle.addEventListener("mousedown", e => {
+          // Allow drag to start from the parent div
+          e.stopPropagation();
+      });
+      
+      headerRow.appendChild(dragHandle);
       headerRow.appendChild(colorBox);
       headerRow.appendChild(span);
+
       headerRow.appendChild(colorInput);
       headerRow.appendChild(categorySelect);
       headerRow.appendChild(budgetLabel);
