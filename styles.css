@@ -541,6 +541,12 @@ header h1 {
   background: #9ca3af !important;
 }
 
+/* Red outline when employee is over their weekly budget */
+.gauge.over-budget {
+  outline: 2px solid #ef4444;
+  outline-offset: 1px;
+}
+
 .gauge-label {
   font-size: 12px;
   color: var(--text-muted);
@@ -651,33 +657,8 @@ button:hover {
 }
 
 /* ----------------------------------------------------------
-   BURN-DOWN CHART
+   ASSIGNMENT
 ---------------------------------------------------------- */
-
-.burn-down-title {
-  margin: 16px 0 6px;
-  font-size: 14px;
-  font-weight: bold;
-  color: var(--text-primary);
-  border-top: 1px solid var(--border-color);
-  padding-top: 12px;
-}
-
-#burnDownChart {
-  width: 100%;
-  height: 220px;
-  background: var(--canvas-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-}
-
-/* Hours Budget input in job header row */
-.job-budget-label {
-  font-size: 11px;
-  color: var(--text-muted);
-  white-space: nowrap;
-}
-
 
 .assignment {
   margin-bottom: 6px;
