@@ -367,16 +367,22 @@ header h1 {
 }
 
 .item-header-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 4px 0;
+}
+
+.item-header-row button {
+    padding: 2px 6px;
+}
+
+.item-header-row .remove-job-btn {
+    margin-left: auto; /* pushes it to the far right */
 }
 
 .legend-color {
-  width: 14px;
-  height: 14px;
-  border-radius: 3px;
-  flex-shrink: 0;
+    margin-right: 4px;
 }
 
 .job-drag-handle {
