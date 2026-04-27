@@ -214,17 +214,25 @@ function renderJobs() {
       const span = document.createElement('span');
       span.textContent = job.name;
 
-      // Job-level color picker — changing it syncs all subtask colors (#7)
+      // Job-level color picker — syncs subtasks that haven't been individually customized
       const colorInput = document.createElement('input');
       colorInput.type = 'color';
       colorInput.value = job.color || DEFAULT_COLOR;
       colorInput.onchange = () => {
+        const oldColor = (job.color || DEFAULT_COLOR).toLowerCase();
         job.color = colorInput.value;
-        // Sync all subtasks on this job to the new job color (#7)
+        colorBox.style.background = colorInput.value;
+        // Only sync subtasks whose color still matches the OLD job color
+        // (i.e. they were never individually customized)
         if (job.subtasks) {
-          job.subtasks.forEach(st => { st.color = colorInput.value; });
+          job.subtasks.forEach(st => {
+            if (!st.color || st.color.toLowerCase() === oldColor) {
+              st.color = colorInput.value;
+            }
+          });
         }
         renderJobs();
+        renderEmployees();
         forceChartUpdate();
       };
 
@@ -315,14 +323,14 @@ function renderJobs() {
             row.draggable = true;
 
             row.addEventListener('dragstart', e => {
-              e.stopPropagation(); // Don't also fire the parent job drag
+              e.stopPropagation();
               const payload = {
                 kind: 'subtask',
                 jobId: job.id,
                 subtaskId: st.id || null,
                 name: st.name,
                 category: st.category,
-                color: job.color || DEFAULT_COLOR // Always use job color (#7)
+                color: st.color || job.color || DEFAULT_COLOR  // carry subtask's own color
               };
               e.dataTransfer.setData('application/json', JSON.stringify(payload));
             });
@@ -335,14 +343,31 @@ function renderJobs() {
             nameSpan.className = 'job-subtask-name';
             nameSpan.textContent = st.name;
 
-            // No color picker on job subtask rows — color is locked to job color (#7)
-            // Show a small dot swatch instead for visual reference
+            // Clickable color swatch — clicking it opens the hidden color picker
+            const stColorPicker = document.createElement('input');
+            stColorPicker.type = 'color';
+            stColorPicker.value = st.color || job.color || DEFAULT_COLOR;
+            stColorPicker.style.cssText = 'position:absolute;opacity:0;width:0;height:0;pointer-events:none;';
+            stColorPicker.onchange = () => {
+              st.color = stColorPicker.value;
+              colorDot.style.background = stColorPicker.value;
+              renderEmployees();
+              forceChartUpdate();
+            };
+
             const colorDot = document.createElement('span');
             colorDot.style.cssText = `
-              display:inline-block;width:10px;height:10px;
-              border-radius:50%;background:${job.color || DEFAULT_COLOR};
-              flex-shrink:0;
+              display:inline-block;width:12px;height:12px;
+              border-radius:50%;background:${st.color || job.color || DEFAULT_COLOR};
+              flex-shrink:0;cursor:pointer;border:1px solid rgba(0,0,0,0.2);
+              position:relative;
             `;
+            colorDot.title = 'Click to change subtask color';
+            colorDot.appendChild(stColorPicker);
+            colorDot.addEventListener('click', e => {
+              e.stopPropagation();
+              stColorPicker.click();
+            });
 
             const delBtn = document.createElement('button');
             delBtn.textContent = 'X';
@@ -366,6 +391,11 @@ function renderJobs() {
         const nameInput = document.createElement('input');
         nameInput.placeholder = 'Subtask name';
 
+        // Color picker for new subtasks — defaults to job color, can be customized
+        const addColorInput = document.createElement('input');
+        addColorInput.type  = 'color';
+        addColorInput.value = job.color || DEFAULT_COLOR;
+
         const addBtn = document.createElement('button');
         addBtn.textContent = 'Add';
         addBtn.onclick = () => {
@@ -375,13 +405,15 @@ function renderJobs() {
             id: uuid(),
             name: nameInput.value.trim(),
             category: subCat,
-            color: job.color || DEFAULT_COLOR // Lock to job color on creation (#7)
+            color: addColorInput.value
           });
           nameInput.value = '';
+          addColorInput.value = job.color || DEFAULT_COLOR; // reset to job color
           renderJobs();
         };
 
         addRow.appendChild(nameInput);
+        addRow.appendChild(addColorInput);
         addRow.appendChild(addBtn);
 
         catBlock.appendChild(catHeader);
