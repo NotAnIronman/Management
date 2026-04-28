@@ -111,14 +111,19 @@
 ------------------------------------------------------------ -->
 <footer class="toolbar-footer">
   <div class="toolbar">
-    <button id="exportCsvBtn">Export to CSV</button>
+    <button id="exportCsvBtn">Export Week CSV</button>
+    <button id="exportAllCsvBtn">Export All Weeks CSV</button>
     <button id="exportJsonBtn">Export JSON</button>
+    <button id="copyShareLinkBtn">📋 Copy Share Link</button>
     <label>
       Import JSON
       <input type="file" id="importJsonInput" accept=".json" />
     </label>
   </div>
 </footer>
+
+<div id="plannerToast"></div>
+<div id="autoSaveIndicator">✓ Saved</div>
 
 <script src="./script.js" defer></script>
 
