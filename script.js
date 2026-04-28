@@ -1353,7 +1353,151 @@ document.getElementById('employeeNameInput').addEventListener('keydown', e => {
   }
 });
 
-// ---------- Export CSV ----------
+// ---------- Toast helper ----------
+
+function showToast(msg, duration = 2500) {
+  const toast = document.getElementById('plannerToast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove('show'), duration);
+}
+
+// ---------- Auto-save to localStorage ----------
+
+const STORAGE_KEY = 'planner-data-v1';
+let autoSaveTimer = null;
+
+function saveToLocalStorage() {
+  try {
+    const snapshot = {
+      employees:        JSON.parse(JSON.stringify(data.employees)),
+      jobs:             JSON.parse(JSON.stringify(data.jobs)),
+      assignments:      JSON.parse(JSON.stringify(data.assignments)),
+      currentWeekStart: data.currentWeekStart.toISOString()
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+
+    // Flash the auto-save indicator
+    const indicator = document.getElementById('autoSaveIndicator');
+    if (indicator) {
+      indicator.classList.add('show');
+      clearTimeout(indicator._timer);
+      indicator._timer = setTimeout(() => indicator.classList.remove('show'), 1800);
+    }
+  } catch (e) {
+    console.warn('Auto-save failed:', e);
+  }
+}
+
+function loadFromLocalStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const saved = JSON.parse(raw);
+    if (!Array.isArray(saved.employees) || !Array.isArray(saved.jobs)) return false;
+    data.employees        = saved.employees;
+    data.jobs             = saved.jobs;
+    data.assignments      = saved.assignments || {};
+    data.currentWeekStart = saved.currentWeekStart
+      ? new Date(saved.currentWeekStart)
+      : startOfWeek(new Date());
+    return true;
+  } catch (e) {
+    console.warn('Failed to load saved data:', e);
+    return false;
+  }
+}
+
+// Debounced auto-save — fires 800ms after the last data change
+function scheduleSave() {
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(saveToLocalStorage, 800);
+}
+
+// Patch renderAll so every render also schedules a save
+const _originalRenderAll = renderAll;  // captured below after definition
+
+// ---------- Share link (URL hash encoding) ----------
+
+function buildSharePayload() {
+  return {
+    employees:        JSON.parse(JSON.stringify(data.employees)),
+    jobs:             JSON.parse(JSON.stringify(data.jobs)),
+    assignments:      JSON.parse(JSON.stringify(data.assignments)),
+    currentWeekStart: data.currentWeekStart.toISOString()
+  };
+}
+
+function encodeSharePayload(payload) {
+  // JSON → UTF-8 bytes → base64
+  const json    = JSON.stringify(payload);
+  const encoded = btoa(unescape(encodeURIComponent(json)));
+  return encoded;
+}
+
+function decodeSharePayload(encoded) {
+  const json = decodeURIComponent(escape(atob(encoded)));
+  return JSON.parse(json);
+}
+
+function copyShareLink() {
+  try {
+    const payload = buildSharePayload();
+    const encoded = encodeSharePayload(payload);
+    const url     = `${location.href.split('#')[0]}#data=${encoded}`;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(() => {
+        showToast('✓ Share link copied to clipboard!');
+      }).catch(() => fallbackCopyShareLink(url));
+    } else {
+      fallbackCopyShareLink(url);
+    }
+  } catch (e) {
+    showToast('⚠ Could not generate share link (data may be too large).');
+    console.error(e);
+  }
+}
+
+function fallbackCopyShareLink(url) {
+  const ta = document.createElement('textarea');
+  ta.value = url;
+  ta.style.cssText = 'position:fixed;opacity:0;';
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  document.body.removeChild(ta);
+  showToast('✓ Share link copied to clipboard!');
+}
+
+function tryLoadFromHash() {
+  const hash = location.hash;
+  if (!hash.startsWith('#data=')) return false;
+  try {
+    const encoded = hash.slice(6);
+    const payload = decodeSharePayload(encoded);
+    if (!Array.isArray(payload.employees) || !Array.isArray(payload.jobs)) return false;
+    data.employees        = payload.employees;
+    data.jobs             = payload.jobs;
+    data.assignments      = payload.assignments || {};
+    data.currentWeekStart = payload.currentWeekStart
+      ? new Date(payload.currentWeekStart)
+      : startOfWeek(new Date());
+    // Clean the hash from the URL without reloading
+    history.replaceState(null, '', location.pathname + location.search);
+    showToast('✓ Shared data loaded successfully!', 3500);
+    return true;
+  } catch (e) {
+    console.warn('Failed to load from share link:', e);
+    showToast('⚠ Could not load share link data.');
+    return false;
+  }
+}
+
+document.getElementById('copyShareLinkBtn').addEventListener('click', copyShareLink);
+
+// ---------- Export current week CSV ----------
 
 document.getElementById('exportCsvBtn').addEventListener('click', () => {
   const weekKey        = getCurrentWeekKey();
@@ -1378,28 +1522,81 @@ document.getElementById('exportCsvBtn').addEventListener('click', () => {
     }
   });
 
+  downloadCsv(rows, `week_${weekKey}.csv`);
+});
+
+// ---------- Export ALL weeks CSV ----------
+
+document.getElementById('exportAllCsvBtn').addEventListener('click', () => {
+  const rows = [['Week', 'Employee', 'District', 'Job', 'Hours', 'EmployeeBudget', 'TotalAllocatedForEmployee']];
+
+  const allWeekKeys = Object.keys(data.assignments).sort();
+
+  if (allWeekKeys.length === 0) {
+    showToast('No week data to export yet.');
+    return;
+  }
+
+  allWeekKeys.forEach(weekKey => {
+    const weekAssignments = data.assignments[weekKey] || {};
+
+    data.employees.forEach(emp => {
+      const empAssignments = weekAssignments[emp.id] || {};
+      const total  = totalHoursForEmployeeWeek(weekKey, emp.id);
+      const jobIds = Object.keys(empAssignments);
+
+      if (jobIds.length === 0) {
+        // Only include weeks where this employee actually has data
+        if (total > 0) {
+          rows.push([weekKey, emp.name, emp.district || '', '', '', emp.weeklyBudget, total]);
+        }
+      } else {
+        jobIds.forEach(jobId => {
+          const job     = data.jobs.find(j => j.id === jobId);
+          const jobName = job ? job.name : '(deleted job)';
+          const hours   = empAssignments[jobId]?.hours || 0;
+          if (hours > 0) {
+            rows.push([weekKey, emp.name, emp.district || '', jobName, hours, emp.weeklyBudget, total]);
+          }
+        });
+      }
+    });
+  });
+
+  const dataRows = rows.length - 1; // minus header
+  if (dataRows === 0) {
+    showToast('No hours data found across any week.');
+    return;
+  }
+
+  downloadCsv(rows, `planner_all_weeks.csv`);
+  showToast(`✓ Exported ${dataRows} rows across ${allWeekKeys.length} weeks.`);
+});
+
+// ---------- Shared CSV download helper ----------
+
+function downloadCsv(rows, filename) {
   const csvContent = rows
     .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
     .join('\r\n');
-
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href     = url;
-  a.download = `week_${weekKey}.csv`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-});
+}
 
 // ---------- Export / Import JSON ----------
 
 document.getElementById('exportJsonBtn').addEventListener('click', () => {
   const exportData = {
-    employees: JSON.parse(JSON.stringify(data.employees)),
-    jobs:       JSON.parse(JSON.stringify(data.jobs)),
-    assignments: JSON.parse(JSON.stringify(data.assignments)),
+    employees:        JSON.parse(JSON.stringify(data.employees)),
+    jobs:             JSON.parse(JSON.stringify(data.jobs)),
+    assignments:      JSON.parse(JSON.stringify(data.assignments)),
     currentWeekStart: data.currentWeekStart.toISOString()
   };
 
@@ -1413,6 +1610,7 @@ document.getElementById('exportJsonBtn').addEventListener('click', () => {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+  showToast('✓ JSON exported.');
 });
 
 document.getElementById('importJsonInput').addEventListener('change', e => {
@@ -1435,6 +1633,7 @@ document.getElementById('importJsonInput').addEventListener('change', e => {
         ? new Date(imported.currentWeekStart)
         : startOfWeek(new Date());
       renderAll();
+      showToast('✓ Data imported successfully.');
     } catch (err) {
       console.error(err);
       alert('Failed to parse JSON.');
@@ -1494,18 +1693,26 @@ makeResizable(
   document.querySelector('.employees-column')
 );
 
-// ---------- Initial render ----------
+// ---------- Initial render + startup sequence ----------
 
 function renderAll() {
   renderWeekLabel();
   renderJobs();
   renderEmployees();
   forceChartUpdate();
+  scheduleSave();   // auto-save on every render
 }
 
-// Set initial auto-picked color in the color input
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('jobColorInput').value = pickUnusedColor();
 });
+
+// Startup priority:
+//  1. Share link in URL hash (highest priority — someone sent you a link)
+//  2. Auto-saved localStorage data
+//  3. Fresh empty state
+if (!tryLoadFromHash()) {
+  loadFromLocalStorage();
+}
 
 renderAll();
