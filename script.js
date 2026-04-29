@@ -125,20 +125,20 @@ const fileMenuBtn = document.getElementById("fileMenuBtn");
 const fileMenu = document.getElementById("fileMenu");
 
 fileMenuBtn.addEventListener("click", e => {
-    e.stopPropagation();
-    fileMenu.classList.toggle("hidden");
+  e.stopPropagation();
+  fileMenu.classList.toggle("hidden");
 });
 
 document.addEventListener("click", e => {
-    if (!fileMenu.contains(e.target) && e.target !== fileMenuBtn) {
-        fileMenu.classList.add("hidden");
-    }
+  if (!fileMenu.contains(e.target) && e.target !== fileMenuBtn) {
+    fileMenu.classList.add("hidden");
+  }
 });
 
 // Manual save button
 document.getElementById("manualSaveBtn").addEventListener("click", () => {
-    saveToLocalStorage();
-    showToast("✓ Saved manually");
+  saveToLocalStorage();
+  showToast("✓ Saved manually");
 });
 
 // ---------- Hours calculations ----------
@@ -420,7 +420,6 @@ function renderJobs() {
         addColorInput.value = job.color || DEFAULT_COLOR;
         addColorInput.style.display = "none"; // hides it
 
-
         const addBtn = document.createElement('button');
         addBtn.textContent = 'Add';
         addBtn.onclick = () => {
@@ -436,6 +435,11 @@ function renderJobs() {
           addColorInput.value = job.color || DEFAULT_COLOR; // reset to job color
           renderJobs();
         };
+
+        // ENTER submits new subtask
+        nameInput.addEventListener('keydown', e => {
+          if (e.key === 'Enter') addBtn.click();
+        });
 
         addRow.appendChild(nameInput);
         addRow.appendChild(addColorInput);
@@ -1239,8 +1243,10 @@ function removeJob(jobId) {
 
 function addEmployee(name, weeklyBudget, district) {
   if (!name.trim()) return;
-  const budget = parseFloat(weeklyBudget);
-  if (isNaN(budget) || budget <= 0) return;
+  let budget = parseFloat(weeklyBudget);
+  if (isNaN(budget) || budget <= 0) {
+    budget = 40; // default hours if not provided/invalid
+  }
   data.employees.push({
     id: uuid(),
     name: name.trim(),
@@ -1375,6 +1381,28 @@ document.getElementById('employeeNameInput').addEventListener('keydown', e => {
   }
 });
 
+// ENTER on employee hours
+document.getElementById('employeeBudgetInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const nameInput     = document.getElementById('employeeNameInput');
+    const budgetInput   = document.getElementById('employeeBudgetInput');
+    const districtInput = document.getElementById('employeeDistrictInput');
+    addEmployee(nameInput.value, budgetInput.value, districtInput.value);
+    clearInputs('employeeNameInput', 'employeeBudgetInput');
+  }
+});
+
+// ENTER on employee district
+document.getElementById('employeeDistrictInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const nameInput     = document.getElementById('employeeNameInput');
+    const budgetInput   = document.getElementById('employeeBudgetInput');
+    const districtInput = document.getElementById('employeeDistrictInput');
+    addEmployee(nameInput.value, budgetInput.value, districtInput.value);
+    clearInputs('employeeNameInput', 'employeeBudgetInput');
+  }
+});
+
 // ---------- Toast helper ----------
 
 function showToast(msg, duration = 2500) {
@@ -1437,10 +1465,7 @@ function scheduleSave() {
   autoSaveTimer = setTimeout(saveToLocalStorage, 800);
 }
 
-// Patch renderAll so every render also schedules a save
-const _originalRenderAll = renderAll;  // captured below after definition
-
-// ---------- Share link (URL hash encoding) ----------
+// Share link (URL hash encoding)
 
 function buildSharePayload() {
   return {
@@ -1519,7 +1544,7 @@ function tryLoadFromHash() {
 
 document.getElementById('copyShareLinkBtn').addEventListener('click', copyShareLink);
 
-// ---------- Export current week CSV ----------
+// Export current week CSV
 
 document.getElementById('exportCsvBtn').addEventListener('click', () => {
   const weekKey        = getCurrentWeekKey();
@@ -1543,11 +1568,10 @@ document.getElementById('exportCsvBtn').addEventListener('click', () => {
       });
     }
   });
-
   downloadCsv(rows, `week_${weekKey}.csv`);
 });
 
-// ---------- Export ALL weeks CSV ----------
+//  Export ALL weeks CSV 
 
 document.getElementById('exportAllCsvBtn').addEventListener('click', () => {
   const rows = [['Week', 'Employee', 'District', 'Job', 'Hours', 'EmployeeBudget', 'TotalAllocatedForEmployee']];
@@ -1595,7 +1619,7 @@ document.getElementById('exportAllCsvBtn').addEventListener('click', () => {
   showToast(`✓ Exported ${dataRows} rows across ${allWeekKeys.length} weeks.`);
 });
 
-// ---------- Shared CSV download helper ----------
+//  Shared CSV download helper
 
 function downloadCsv(rows, filename) {
   const csvContent = rows
@@ -1612,7 +1636,7 @@ function downloadCsv(rows, filename) {
   URL.revokeObjectURL(url);
 }
 
-// ---------- Export / Import JSON ----------
+// Export / Import JSON
 
 document.getElementById('exportJsonBtn').addEventListener('click', () => {
   const exportData = {
@@ -1621,7 +1645,6 @@ document.getElementById('exportJsonBtn').addEventListener('click', () => {
     assignments:      JSON.parse(JSON.stringify(data.assignments)),
     currentWeekStart: data.currentWeekStart.toISOString()
   };
-
   const jsonStr = JSON.stringify(exportData, null, 2);
   const blob    = new Blob([jsonStr], { type: 'application/json' });
   const url     = URL.createObjectURL(blob);
@@ -1665,7 +1688,7 @@ document.getElementById('importJsonInput').addEventListener('change', e => {
   e.target.value = '';
 });
 
-// ---------- Resizable columns ----------
+// Resizable columns
 
 function makeResizable(divider, leftCol, rightCol) {
   let dragging = false;
@@ -1715,7 +1738,7 @@ makeResizable(
   document.querySelector('.employees-column')
 );
 
-// ---------- Initial render + startup sequence ----------
+// Initial render
 
 function renderAll() {
   renderWeekLabel();
@@ -1729,10 +1752,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('jobColorInput').value = pickUnusedColor();
 });
 
-// Startup priority:
-//  1. Share link in URL hash (highest priority — someone sent you a link)
-//  2. Auto-saved localStorage data
-//  3. Fresh empty state
 if (!tryLoadFromHash()) {
   loadFromLocalStorage();
 }
