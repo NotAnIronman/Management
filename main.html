@@ -45,7 +45,22 @@
           </label>
         </label>
       </div>
-      <!-- Future settings can go here -->
+      <!-- File dropdown -->
+      <div class="header-filemenu">
+          <button id="fileMenuBtn" class="filemenu-btn">File ▾</button>
+          <div id="fileMenu" class="filemenu hidden">
+              <div class="filemenu-item" id="manualSaveBtn">💾 Save</div>
+              <div class="filemenu-item" id="exportCsvBtn">Export Week CSV</div>
+              <div class="filemenu-item" id="exportAllCsvBtn">Export All Weeks CSV</div>
+              <div class="filemenu-item" id="exportJsonBtn">Export JSON</div>
+              <label class="filemenu-item">
+                  Import JSON
+                  <input type="file" id="importJsonInput" accept=".json" />
+              </label>
+              <div class="filemenu-item" id="copyShareLinkBtn">📋 Copy Share Link</div>
+          </div>
+      </div>
+    <!-- Future settings can go here -->
     </div>
   </div>
 </header>
@@ -105,22 +120,6 @@
   </div>
 
 </div>
-
-<!-- -----------------------------------------------------------
-     FOOTER TOOLBAR
------------------------------------------------------------- -->
-<footer class="toolbar-footer">
-  <div class="toolbar">
-    <button id="exportCsvBtn">Export Week CSV</button>
-    <button id="exportAllCsvBtn">Export All Weeks CSV</button>
-    <button id="exportJsonBtn">Export JSON</button>
-    <button id="copyShareLinkBtn">📋 Copy Share Link</button>
-    <label>
-      Import JSON
-      <input type="file" id="importJsonInput" accept=".json" />
-    </label>
-  </div>
-</footer>
 
 <div id="plannerToast"></div>
 <div id="autoSaveIndicator">✓ Saved</div>
