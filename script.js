@@ -123,18 +123,26 @@ function getEmployeeAssignmentsForWeek(weekKey, employeeId) {
 
 const fileBtn = document.getElementById("fileBtn");
 const fileMenu = document.getElementById("fileMenu");
+const settingsBtn = document.getElementById("settingsBtn");
+const settingsMenu = document.getElementById("settingsMenu");
 
-fileBtn.addEventListener("click", e => {
-    e.stopPropagation();
-    fileMenu.classList.toggle("hidden");
+fileBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  fileMenu.classList.toggle("hidden");
+  settingsMenu.classList.add("hidden");
 });
 
-// Close when clicking outside
-document.addEventListener("click", e => {
-    if (!fileMenu.contains(e.target) && e.target !== fileBtn) {
-        fileMenu.classList.add("hidden");
-    }
+settingsBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  settingsMenu.classList.toggle("hidden");
+  fileMenu.classList.add("hidden");
 });
+
+document.addEventListener("click", () => {
+  fileMenu.classList.add("hidden");
+  settingsMenu.classList.add("hidden");
+});
+
 
 
 // ---------- Hours calculations ----------
