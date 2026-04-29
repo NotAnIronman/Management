@@ -180,52 +180,34 @@ header h1 {
 ---------------------------------------------------------- */
 
 .header-actions {
-  display: flex;
-  align-items: center;
-  gap: 15px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
-/* Each menu (File, Settings) anchors its dropdown */
-.menu-wrapper {
-  position: relative;
+.file-btn {
+    padding: 6px 12px;
+    background: var(--button-bg);
+    border: 1px solid var(--button-border);
+    border-radius: 4px;
+    cursor: pointer;
 }
 
-/* FILE MENU DROPDOWN */
 .file-menu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background: var(--menu-bg, #fff);
-  border: 1px solid var(--menu-border, #ccc);
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  z-index: 1000;
+    position: absolute;
+    right: 60px; /* adjust as needed */
+    top: 50px;
+    background: var(--menu-bg);
+    border: 1px solid var(--menu-border);
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 1000;
 }
 
 .file-menu.hidden {
-  display: none;
-}
-
-.file-menu button {
-  width: 100%;
-  text-align: left;
-}
-
-/* SETTINGS MENU DROPDOWN (same behavior) */
-.settings-menu {
-  position: absolute;
-  top: 100%;
-  right: 0;
-  background: var(--menu-bg, #fff);
-  border: 1px solid var(--menu-border, #ccc);
-  padding: 10px;
-  z-index: 1000;
-}
-
-.settings-menu.hidden {
-  display: none;
+    display: none;
 }
 
 .import-label {
@@ -250,6 +232,23 @@ header h1 {
 
 .settings-btn:hover {
   background: rgba(255,255,255,0.25);
+}
+
+.settings-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--bg-settings);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: var(--settings-shadow);
+  min-width: 220px;
+  z-index: 9999;
+  padding: 8px 0;
+}
+
+.settings-menu.hidden {
+  display: none;
 }
 
 .settings-item {
