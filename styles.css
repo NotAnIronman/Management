@@ -187,8 +187,8 @@ header h1 {
 
 .file-btn {
     padding: 6px 12px;
-    background: var(--button-bg);
-    border: 1px solid var(--button-border);
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
     border-radius: 4px;
     cursor: pointer;
 }
@@ -197,13 +197,20 @@ header h1 {
     position: absolute;
     right: 60px; /* adjust as needed */
     top: 50px;
-    background: var(--menu-bg);
-    border: 1px solid var(--menu-border);
+    background: var(--bg-settings);
+    border: 1px solid var(--border-color);
+    color: var(--header-text);
+    border-radius: 8px;
+    box-shadow: var(--settings-shadow);
     padding: 10px;
     display: flex;
     flex-direction: column;
     gap: 6px;
     z-index: 1000;
+}
+
+.file-btn:hover {
+  background: rgba(255,255,255,0.25);
 }
 
 .file-menu.hidden {
