@@ -1,88 +1,109 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Management Planner</title>
-    <link rel="stylesheet" href="styles.css" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Management Planner</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
-
 <body>
-    <header>
-        <!-- LEFT: Title -->
-        <div class="app-title">Management Planner</div>
+  <header>
+    <!-- LEFT: Title -->
+    <div class="app-title">Management Planner</div>
 
-        <!-- CENTER: Week Navigation -->
-        <div class="week-controls">
-            <button id="prevWeekBtn" class="week-btn">◀</button>
-            <span id="currentWeekLabel"></span>
-            <button id="nextWeekBtn" class="week-btn">▶</button>
-        </div>
-
-        <!-- RIGHT: File | Settings segmented control -->
-        <div class="header-controls">
-            <div class="segmented-control">
-                <button id="fileMenuBtn" class="segment-btn">File</button>
-                <button id="settingsBtn" class="segment-btn">Settings</button>
-            </div>
-
-            <!-- FILE MENU DROPDOWN -->
-            <div id="fileMenu" class="filemenu hidden">
-                <div class="filemenu-item" id="manualSaveBtn">💾 Save</div>
-                <div class="filemenu-item" id="exportCsvBtn">Export Week CSV</div>
-                <div class="filemenu-item" id="exportAllCsvBtn">Export All Weeks CSV</div>
-                <div class="filemenu-item" id="exportJsonBtn">Export JSON</div>
-
-                <label class="filemenu-item">
-                    Import JSON
-                    <input type="file" id="importJsonInput" accept=".json" />
-                </label>
-
-                <div class="filemenu-item" id="copyShareLinkBtn">📋 Copy Share Link</div>
-            </div>
-        </div>
-    </header>
-
-    <!-- SETTINGS PANEL (unchanged) -->
-    <div id="settingsPanel" class="settings-panel hidden">
-        <h2>Settings</h2>
-        <label>
-            Default District:
-            <input type="text" id="defaultDistrictInput" />
-        </label>
-        <button id="saveSettingsBtn">Save Settings</button>
+    <!-- CENTER: Week Navigation -->
+    <div class="week-controls">
+      <button id="prevWeekBtn" class="week-btn">◀</button>
+      <span id="weekLabel"></span>
+      <button id="nextWeekBtn" class="week-btn">▶</button>
+      <button id="jumpToPresentBtn" class="week-btn">Today</button>
     </div>
 
-    <!-- MAIN CONTENT -->
-    <main>
-        <section id="jobsSection" class="column">
-            <h2>Jobs</h2>
-            <div class="add-row">
-                <input id="jobNameInput" type="text" placeholder="New Job Name" />
-                <button id="addJobBtn">Add Job</button>
-            </div>
-            <div id="jobsList"></div>
-        </section>
+    <!-- RIGHT: File | Settings segmented control -->
+    <div class="header-controls">
+      <div class="segmented-control">
+        <button id="fileMenuBtn" class="segment-btn">File</button>
+        <button id="settingsBtn" class="segment-btn">Settings</button>
+      </div>
 
-        <section id="employeesSection" class="column">
-            <h2>Employees</h2>
-            <div class="add-row">
-                <input id="employeeNameInput" type="text" placeholder="Employee Name" />
-                <input id="employeeBudgetInput" type="number" placeholder="Hours (default 40)" />
-                <input id="employeeDistrictInput" type="text" placeholder="District" />
-                <button id="addEmployeeBtn">Add Employee</button>
-            </div>
-            <div id="employeesList"></div>
-        </section>
+      <!-- FILE MENU DROPDOWN -->
+      <div id="fileMenu" class="filemenu hidden">
+        <div class="filemenu-item" id="manualSaveBtn">💾 Save</div>
+        <div class="filemenu-item" id="exportCsvBtn">Export Week CSV</div>
+        <div class="filemenu-item" id="exportAllCsvBtn">Export All Weeks CSV</div>
+        <div class="filemenu-item" id="exportJsonBtn">Export JSON</div>
+        <label class="filemenu-item">
+          Import JSON
+          <input type="file" id="importJsonInput" accept=".json" />
+        </label>
+        <div class="filemenu-item" id="copyShareLinkBtn">📋 Copy Share Link</div>
+      </div>
+    </div>
+  </header>
 
-        <section id="summarySection" class="column">
-            <h2>Summary</h2>
-            <canvas id="summaryChart"></canvas>
-        </section>
-    </main>
+  <!-- SETTINGS PANEL -->
+  <div id="settingsMenu" class="settings-panel hidden">
+    <h2>Settings</h2>
+    <label>
+      Dark mode:
+      <input type="checkbox" id="darkModeToggle" />
+    </label>
+  </div>
 
-    <script src="script.js"></script>
+  <!-- MAIN CONTENT -->
+  <main>
+    <div class="container">
+      <!-- LEFT: Charts -->
+      <section class="chart-column">
+        <h2>Overview</h2>
+        <div id="chartHeaderLine"></div>
+        <canvas id="projectChart"></canvas>
+
+        <h3>Hours Budget Burn-down</h3>
+        <canvas id="burnDownChart"></canvas>
+
+        <div id="chartLegend"></div>
+      </section>
+
+      <div id="divider1" class="divider"></div>
+
+      <!-- MIDDLE: Jobs -->
+      <section class="jobs-column">
+        <h2>Jobs</h2>
+        <div class="add-row">
+          <input id="jobNameInput" type="text" placeholder="New Job Name" />
+          <select id="jobCategoryInput">
+            <option value="Active">Active</option>
+            <option value="Upcoming">Upcoming</option>
+            <option value="Complete">Complete</option>
+            <option value="Other">Other</option>
+          </select>
+          <input id="jobColorInput" type="color" />
+          <button id="addJobBtn">Add Job</button>
+        </div>
+        <div id="jobsList"></div>
+      </section>
+
+      <div id="divider2" class="divider"></div>
+
+      <!-- RIGHT: Employees -->
+      <section class="employees-column">
+        <h2>Employees</h2>
+        <div class="add-row">
+          <input id="employeeNameInput" type="text" placeholder="Employee Name" />
+          <input id="employeeBudgetInput" type="number" placeholder="Hours (default 40)" />
+          <input id="employeeDistrictInput" type="text" placeholder="District" />
+          <button id="addEmployeeBtn">Add Employee</button>
+        </div>
+        <div id="employeesList"></div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Toast + Auto-save indicator -->
+  <div id="plannerToast"></div>
+  <div id="autoSaveIndicator">Auto-saved</div>
+
+  <script src="script.js"></script>
 </body>
-
 </html>
