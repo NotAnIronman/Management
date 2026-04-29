@@ -16,50 +16,56 @@
 
   <div class="week-controls">
     <div class="week-nav-row">
-      <!-- Move one week backward -->
       <button id="prevWeekBtn">&lt; Prev</button>
-
-      <!-- Displays the current week range -->
       <span id="weekLabel"></span>
-
-      <!-- Move one week forward -->
       <button id="nextWeekBtn">Next &gt;</button>
     </div>
 
-    <!-- Jump back to the current week — sits below the date range -->
     <div class="week-jump-row">
       <button id="jumpToPresentBtn">Jump to Present</button>
     </div>
   </div>
-  
-  <!-- Settings and File button -->
+
+  <!-- RIGHT SIDE: File + Settings -->
   <div class="header-actions">
-    <button id="fileBtn" class="file-btn" title="File">File</button>
-    <div id="fileMenu" class="file-menu hidden">
+    
+    <!-- FILE BUTTON -->
+    <div class="menu-wrapper">
+      <button id="fileBtn" class="file-btn" title="File">File</button>
+
+      <div id="fileMenu" class="file-menu hidden">
         <button id="exportCsvBtn">Export Week CSV</button>
         <button id="exportAllCsvBtn">Export All Weeks CSV</button>
         <button id="exportJsonBtn">Export JSON</button>
         <button id="copyShareLinkBtn">📋 Copy Share Link</button>
+
         <label class="import-label">
-            Import JSON
-            <input type="file" id="importJsonInput" accept=".json">
-        </label>
-    </div>
-    <button id="settingsBtn" class="settings-btn" title="Settings">⚙</button>
-    <div id="settingsMenu" class="settings-menu hidden">
-      <div class="settings-item">
-        <label class="settings-label">
-          <span>Dark Mode</span>
-          <label class="toggle-switch">
-            <input type="checkbox" id="darkModeToggle" />
-            <span class="toggle-slider"></span>
-          </label>
+          Import JSON
+          <input type="file" id="importJsonInput" accept=".json">
         </label>
       </div>
-      <!-- Future settings can go here -->
     </div>
+
+    <!-- SETTINGS BUTTON -->
+    <div class="menu-wrapper">
+      <button id="settingsBtn" class="settings-btn" title="Settings">⚙</button>
+
+      <div id="settingsMenu" class="settings-menu hidden">
+        <div class="settings-item">
+          <label class="settings-label">
+            <span>Dark Mode</span>
+            <label class="toggle-switch">
+              <input type="checkbox" id="darkModeToggle" />
+              <span class="toggle-slider"></span>
+            </label>
+          </label>
+        </div>
+      </div>
+    </div>
+
   </div>
 </header>
+
 
 <!-- -----------------------------------------------------------
      MAIN 3-COLUMN LAYOUT
