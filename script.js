@@ -119,6 +119,24 @@ function getEmployeeAssignmentsForWeek(weekKey, employeeId) {
   return week[employeeId];
 }
 
+// ---------- File Menu ----------
+
+const fileBtn = document.getElementById("fileBtn");
+const fileMenu = document.getElementById("fileMenu");
+
+fileBtn.addEventListener("click", e => {
+    e.stopPropagation();
+    fileMenu.classList.toggle("hidden");
+});
+
+// Close when clicking outside
+document.addEventListener("click", e => {
+    if (!fileMenu.contains(e.target) && e.target !== fileBtn) {
+        fileMenu.classList.add("hidden");
+    }
+});
+
+
 // ---------- Hours calculations ----------
 
 function totalHoursForEmployeeWeek(weekKey, employeeId) {
