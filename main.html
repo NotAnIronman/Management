@@ -32,9 +32,20 @@
     </div>
   </div>
   
-  <!-- Settings button -->
-  <div class="header-settings">
-    <button id="settingsBtn" class="settings-btn" title="Settings">&#9881;</button>
+  <!-- Settings and File button -->
+  <div class="header-actions">
+    <button id="fileBtn" class="file-btn" title="File">File</button>
+    <div id="fileMenu" class="file-menu hidden">
+        <button id="exportCsvBtn">Export Week CSV</button>
+        <button id="exportAllCsvBtn">Export All Weeks CSV</button>
+        <button id="exportJsonBtn">Export JSON</button>
+        <button id="copyShareLinkBtn">📋 Copy Share Link</button>
+        <label class="import-label">
+            Import JSON
+            <input type="file" id="importJsonInput" accept=".json">
+        </label>
+    </div>
+    <button id="settingsBtn" class="settings-btn" title="Settings">⚙</button>
     <div id="settingsMenu" class="settings-menu hidden">
       <div class="settings-item">
         <label class="settings-label">
@@ -105,22 +116,6 @@
   </div>
 
 </div>
-
-<!-- -----------------------------------------------------------
-     FOOTER TOOLBAR
------------------------------------------------------------- -->
-<footer class="toolbar-footer">
-  <div class="toolbar">
-    <button id="exportCsvBtn">Export Week CSV</button>
-    <button id="exportAllCsvBtn">Export All Weeks CSV</button>
-    <button id="exportJsonBtn">Export JSON</button>
-    <button id="copyShareLinkBtn">📋 Copy Share Link</button>
-    <label>
-      Import JSON
-      <input type="file" id="importJsonInput" accept=".json" />
-    </label>
-  </div>
-</footer>
 
 <div id="plannerToast"></div>
 <div id="autoSaveIndicator">✓ Saved</div>
