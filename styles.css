@@ -91,7 +91,7 @@ body {
 
 .container {
   display: flex;
-  height: calc(100vh - 56px - 48px); /* header + footer */
+  height: calc(100vh - 56px); /* header */
   overflow: hidden;
 }
 
