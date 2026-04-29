@@ -669,36 +669,48 @@ button:hover {
 }
 
 /* ----------------------------------------------------------
-   FOOTER
+   File Menu
 ---------------------------------------------------------- */
 
-.toolbar-footer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 48px;
-  background: var(--bg-column);
-  border-top: 1px solid var(--border-color);
-  display: flex;
-  align-items: center;
-  z-index: 50;
+.header-filemenu {
+    position: relative;
+    margin-left: 12px;
 }
 
-.toolbar {
-  display: flex;
-  gap: 8px;
-  padding: 0 16px;
-  align-items: center;
+.filemenu-btn {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: var(--header-text);
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
 }
 
-.toolbar label {
-  color: var(--text-primary);
-  font-size: 14px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.filemenu {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    background: var(--bg-settings);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--settings-shadow);
+    min-width: 220px;
+    z-index: 9999;
+    padding: 8px 0;
+}
+
+.filemenu.hidden {
+    display: none;
+}
+
+.filemenu-item {
+    padding: 8px 16px;
+    cursor: pointer;
+    color: var(--text-primary);
+}
+
+.filemenu-item:hover {
+    background: var(--bg-cat-header);
 }
 
 /* ----------------------------------------------------------
