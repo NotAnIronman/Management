@@ -119,6 +119,28 @@ function getEmployeeAssignmentsForWeek(weekKey, employeeId) {
   return week[employeeId];
 }
 
+// ---------- File Menu -----------
+
+const fileMenuBtn = document.getElementById("fileMenuBtn");
+const fileMenu = document.getElementById("fileMenu");
+
+fileMenuBtn.addEventListener("click", e => {
+    e.stopPropagation();
+    fileMenu.classList.toggle("hidden");
+});
+
+document.addEventListener("click", e => {
+    if (!fileMenu.contains(e.target) && e.target !== fileMenuBtn) {
+        fileMenu.classList.add("hidden");
+    }
+});
+
+// Manual save button
+document.getElementById("manualSaveBtn").addEventListener("click", () => {
+    saveToLocalStorage();
+    showToast("✓ Saved manually");
+});
+
 // ---------- Hours calculations ----------
 
 function totalHoursForEmployeeWeek(weekKey, employeeId) {
