@@ -41,7 +41,9 @@
         <button id="exportJsonBtn">Export JSON</button>
         <button id="copyShareLinkBtn">Copy Share Link</button>
         <button id="importBtn">Import JSON</button>
-        <input type="file" id="importJsonInput" accept=".json" style="display:none;">
+        <div style="height:0; overflow:hidden;">
+          <input type="file" id="importJsonInput" accept=".json">
+        </div>
     </div>
     <button id="settingsBtn" class="settings-btn" title="Settings">⚙</button>
     <div id="settingsMenu" class="settings-menu hidden">
