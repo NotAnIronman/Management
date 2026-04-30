@@ -35,15 +35,13 @@
   <!-- Settings and File button -->
   <div class="header-actions">
     <button id="fileBtn" class="file-btn" title="File">File</button>
-    <div id="fileMenu" class="file-menu hidden">
+    <div id="fileMenu" class="file-menu">
         <button id="exportCsvBtn">Export Week CSV</button>
         <button id="exportAllCsvBtn">Export All Weeks CSV</button>
         <button id="exportJsonBtn">Export JSON</button>
-        <button id="copyShareLinkBtn">📋 Copy Share Link</button>
-        <label class="import-label">
-            Import JSON
-            <input type="file" id="importJsonInput" accept=".json">
-        </label>
+        <button id="copyShareLinkBtn">Copy Share Link</button>
+        <button id="importBtn">Import JSON</button>
+        <input type="file" id="importJsonInput" accept=".json" style="display:none;">
     </div>
     <button id="settingsBtn" class="settings-btn" title="Settings">⚙</button>
     <div id="settingsMenu" class="settings-menu hidden">
@@ -120,7 +118,7 @@
 <div id="plannerToast"></div>
 <div id="autoSaveIndicator">✓ Saved</div>
 
-<script src="./script.js" defer></script>
+<script src="script.js" defer></script>
 
-</body>
+  </body>
 </html>
