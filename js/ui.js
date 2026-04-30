@@ -733,6 +733,26 @@ export function removeAssignment(weekKey, empId, jobId) {
   forceChartUpdate();
 }
 
+/*
+   download CSV
+*/
+export function downloadCsv(rows, filename) {
+  const csvContent = rows
+    .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(','))
+    .join('\r\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+
 /* -------------------------------------------------------
    Resizable Columns
 ------------------------------------------------------- */
