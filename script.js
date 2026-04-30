@@ -1631,6 +1631,10 @@ document.getElementById('exportJsonBtn').addEventListener('click', () => {
   showToast('✓ JSON exported.');
 });
 
+document.getElementById("importBtn").addEventListener("click", () => {
+    document.getElementById("importJsonInput").click();
+});
+
 document.getElementById('importJsonInput').addEventListener('change', e => {
   const file = e.target.files[0];
   if (!file) return;
