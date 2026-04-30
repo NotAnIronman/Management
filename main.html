@@ -1,126 +1,114 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="light">
+
 <head>
-  <meta charset="UTF-8" />
-  <title>Estimation Management Planner</title>
-  <link rel="stylesheet" href="styles.css" />
+    <meta charset="UTF-8" />
+    <title>Estimation Management Planner</title>
+    <link rel="stylesheet" href="styles.css" />
 </head>
 
 <body>
 
-<!-- -----------------------------------------------------------
-     HEADER AREA
------------------------------------------------------------- -->
-<header>
-  <h1>Estimation Management Planner</h1>
+    <header>
+        <h1>Estimation Management Planner</h1>
 
-  <div class="week-controls">
-    <div class="week-nav-row">
-      <!-- Move one week backward -->
-      <button id="prevWeekBtn">&lt; Prev</button>
+        <div class="week-controls">
+            <div class="week-nav-row">
+                <button id="prevWeekBtn">&lt; Prev</button>
+                <span id="weekLabel"></span>
+                <button id="nextWeekBtn">Next &gt;</button>
+            </div>
 
-      <!-- Displays the current week range -->
-      <span id="weekLabel"></span>
-
-      <!-- Move one week forward -->
-      <button id="nextWeekBtn">Next &gt;</button>
-    </div>
-
-    <!-- Jump back to the current week — sits below the date range -->
-    <div class="week-jump-row">
-      <button id="jumpToPresentBtn">Jump to Present</button>
-    </div>
-  </div>
-  
-  <!-- Settings and File button -->
-  <div class="header-actions">
-    <button id="fileBtn" class="file-btn" title="File">File</button>
-    <div id="fileMenu" class="file-menu hidden">
-        <button id="exportCsvBtn">Export Week CSV</button>
-        <button id="exportAllCsvBtn">Export All Weeks CSV</button>
-        <button id="exportJsonBtn">Export JSON</button>
-        <button id="copyShareLinkBtn">Copy Share Link</button>
-        <button id="importBtn">Import JSON</button>
-        <div style="height:0; overflow:hidden;">
-          <input type="file" id="importJsonInput" accept=".json">
+            <button id="jumpToPresentBtn" class="week-jump-row">Jump to Present</button>
         </div>
+
+        <div class="header-actions">
+            <button id="fileBtn" class="file-btn" title="File">File</button>
+
+            <div id="fileMenu" class="file-menu hidden">
+                <button id="exportCsvBtn">Export Week CSV</button>
+                <button id="exportAllCsvBtn">Export All Weeks CSV</button>
+                <button id="exportJsonBtn">Export JSON</button>
+                <button id="copyShareLinkBtn">Copy Share Link</button>
+                <button id="importBtn">Import JSON</button>
+                <input type="file" id="importJsonInput" accept=".json" hidden>
+            </div>
+
+            <button id="settingsBtn" class="settings-btn" title="Settings">⚙</button>
+
+            <div id="settingsMenu" class="settings-menu hidden">
+                <label class="settings-item settings-label">
+                    <span>Dark Mode</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="darkModeToggle" />
+                        <span class="toggle-slider"></span>
+                    </label>
+                </label>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+
+        <!-- CHARTS -->
+        <div class="chart-column">
+            <h2>Project Allocation</h2>
+            <div id="chartHeaderLine" class="chart-header-line"></div>
+            <canvas id="projectChart"></canvas>
+            <div id="chartLegend" class="chart-legend"></div>
+
+            <h3 class="burn-down-title">Hours Budget Burn-Down</h3>
+            <canvas id="burnDownChart"></canvas>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- JOBS -->
+        <div class="jobs-column">
+            <h2>Jobs</h2>
+
+            <div class="form-inline">
+                <input type="text" id="jobNameInput" placeholder="Job name" />
+                <select id="jobCategoryInput">
+                    <option>Active</option>
+                    <option>Upcoming</option>
+                    <option>Complete</option>
+                    <option>Other</option>
+                </select>
+                <input type="color" id="jobColorInput" value="#3b82f6" />
+                <button id="addJobBtn">Add Job</button>
+            </div>
+
+            <div id="jobsList"></div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- EMPLOYEES -->
+        <div class="employees-column">
+            <h2>Employees</h2>
+
+            <div class="form-inline">
+                <input type="text" id="employeeNameInput" placeholder="Employee name" />
+                <input type="number" id="employeeBudgetInput" placeholder="Weekly hours" min="1" />
+                <select id="employeeDistrictInput">
+                    <option>Electrical</option>
+                    <option>Instrumentation</option>
+                    <option>Flex</option>
+                </select>
+                <button id="addEmployeeBtn">Add Employee</button>
+            </div>
+
+            <div id="employeesList" class="list"></div>
+        </div>
+
     </div>
-    <button id="settingsBtn" class="settings-btn" title="Settings">⚙</button>
-    <div id="settingsMenu" class="settings-menu hidden">
-      <div class="settings-item">
-        <label class="settings-label">
-          <span>Dark Mode</span>
-          <label class="toggle-switch">
-            <input type="checkbox" id="darkModeToggle" />
-            <span class="toggle-slider"></span>
-          </label>
-        </label>
-      </div>
-      <!-- Future settings can go here -->
-    </div>
-  </div>
-</header>
 
-<!-- -----------------------------------------------------------
-     MAIN 3-COLUMN LAYOUT
------------------------------------------------------------- -->
-<div class="container">
+    <div id="plannerToast"></div>
+    <div id="autoSaveIndicator">✓ Saved</div>
 
-  <!-- CHART COLUMN -->
-  <div class="chart-column">
-    <h2>Project Allocation</h2>
-    <div id="chartHeaderLine" class="chart-header-line"></div>
-    <canvas id="projectChart"></canvas>
-    <div id="chartLegend" class="chart-legend"></div>
+    <script src="script.js" defer></script>
 
-    <!-- Hours Budget Burn-Down Chart -->
-    <h3 class="burn-down-title">Hours Budget Burn-Down</h3>
-    <canvas id="burnDownChart"></canvas>
-  </div>
+</body>
 
-  <div class="divider" id="divider1"></div>
-
-  <!-- JOBS COLUMN -->
-  <div class="jobs-column">
-    <h2>Jobs</h2>
-    <div class="form-inline">
-      <input type="text" id="jobNameInput" placeholder="Job name" />
-      <select id="jobCategoryInput">
-        <option>Active</option>
-        <option>Upcoming</option>
-        <option>Complete</option>
-        <option>Other</option>
-      </select>
-      <input type="color" id="jobColorInput" value="#3b82f6" />
-      <button id="addJobBtn">Add Job</button>
-    </div>
-    <div id="jobsList"></div>
-  </div>
-
-  <div class="divider" id="divider2"></div>
-
-  <!-- EMPLOYEES COLUMN -->
-  <div class="employees-column">
-    <h2>Employees</h2>
-    <div class="form-inline">
-      <input type="text" id="employeeNameInput" placeholder="Employee name" />
-      <input type="number" id="employeeBudgetInput" placeholder="Weekly hours" min="1" />
-      <select id="employeeDistrictInput">
-        <option>Electrical</option>
-        <option>Instrumentation</option>
-        <option>Flex</option>
-      </select>
-      <button id="addEmployeeBtn">Add Employee</button>
-    </div>
-    <div id="employeesList" class="list"></div>
-  </div>
-
-</div>
-
-<div id="plannerToast"></div>
-<div id="autoSaveIndicator">✓ Saved</div>
-
-<script src="script.js" defer></script>
-
-  </body>
 </html>
