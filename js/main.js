@@ -54,6 +54,40 @@ document.getElementById('jumpToPresentBtn').addEventListener('click', () => {
   renderAll();
 });
 
+document.addEventListener("DOMContentLoaded", () => {
+
+  // FILE MENU
+  const fileBtn = document.getElementById("fileBtn");
+  const fileMenu = document.getElementById("fileMenu");
+
+  fileBtn.addEventListener("click", e => {
+    e.stopPropagation();
+    fileMenu.classList.toggle("hidden");
+  });
+
+  document.addEventListener("click", e => {
+    if (!fileMenu.contains(e.target) && e.target !== fileBtn) {
+      fileMenu.classList.add("hidden");
+    }
+  });
+
+  // SETTINGS MENU
+  const settingsBtn = document.getElementById("settingsBtn");
+  const settingsMenu = document.getElementById("settingsMenu");
+
+  settingsBtn.addEventListener("click", e => {
+    e.stopPropagation();
+    settingsMenu.classList.toggle("hidden");
+  });
+
+  document.addEventListener("click", e => {
+    if (!settingsMenu.contains(e.target) && e.target !== settingsBtn) {
+      settingsMenu.classList.add("hidden");
+    }
+  });
+
+});
+
 // add job / employee
 document.getElementById('addJobBtn').addEventListener('click', () => {
   const nameInput = document.getElementById('jobNameInput');
