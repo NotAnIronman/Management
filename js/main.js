@@ -88,6 +88,150 @@ document.addEventListener("DOMContentLoaded", () => {
 
 });
 
+document.addEventListener("DOMContentLoaded", () => {
+
+  /* ---------------- FILE MENU ACTIONS ---------------- */
+
+  // Export Week CSV
+  document.getElementById("exportCsvBtn").addEventListener("click", () => {
+    const weekKey = getCurrentWeekKey();
+    const weekAssignments = getAssignmentsForWeek(weekKey);
+
+    const rows = [['Week', 'Employee', 'District', 'Job', 'Hours', 'EmployeeBudget', 'TotalAllocatedForEmployee']];
+
+    data.employees.forEach(emp => {
+      const empAssignments = weekAssignments[emp.id] || {};
+      const total = totalHoursForEmployeeWeek(weekKey, emp.id);
+      const jobIds = Object.keys(empAssignments);
+
+      if (jobIds.length === 0) {
+        rows.push([weekKey, emp.name, emp.district || '', '', '', emp.weeklyBudget, total]);
+      } else {
+        jobIds.forEach(jobId => {
+          const job = data.jobs.find(j => j.id === jobId);
+          const jobName = job ? job.name : '(deleted job)';
+          const hours = empAssignments[jobId].hours || 0;
+          rows.push([weekKey, emp.name, emp.district || '', jobName, hours, emp.weeklyBudget, total]);
+        });
+      }
+    });
+
+    downloadCsv(rows, `week_${weekKey}.csv`);
+  });
+
+  // Export ALL Weeks CSV
+  document.getElementById("exportAllCsvBtn").addEventListener("click", () => {
+    const rows = [['Week', 'Employee', 'District', 'Job', 'Hours', 'EmployeeBudget', 'TotalAllocatedForEmployee']];
+    const allWeekKeys = Object.keys(data.assignments).sort();
+
+    if (allWeekKeys.length === 0) {
+      showToast('No week data to export yet.');
+      return;
+    }
+
+    allWeekKeys.forEach(weekKey => {
+      const weekAssignments = data.assignments[weekKey] || {};
+
+      data.employees.forEach(emp => {
+        const empAssignments = weekAssignments[emp.id] || {};
+        const total = totalHoursForEmployeeWeek(weekKey, emp.id);
+        const jobIds = Object.keys(empAssignments);
+
+        if (jobIds.length === 0) {
+          if (total > 0) {
+            rows.push([weekKey, emp.name, emp.district || '', '', '', emp.weeklyBudget, total]);
+          }
+        } else {
+          jobIds.forEach(jobId => {
+            const job = data.jobs.find(j => j.id === jobId);
+            const jobName = job ? job.name : '(deleted job)';
+            const hours = empAssignments[jobId]?.hours || 0;
+            if (hours > 0) {
+              rows.push([weekKey, emp.name, emp.district || '', jobName, hours, emp.weeklyBudget, total]);
+            }
+          });
+        }
+      });
+    });
+
+    if (rows.length === 1) {
+      showToast('No hours data found across any week.');
+      return;
+    }
+
+    downloadCsv(rows, `planner_all_weeks.csv`);
+    showToast(`✓ Exported ${rows.length - 1} rows across ${allWeekKeys.length} weeks.`);
+  });
+
+  // Export JSON
+  document.getElementById("exportJsonBtn").addEventListener("click", () => {
+    const exportData = {
+      employees: JSON.parse(JSON.stringify(data.employees)),
+      jobs: JSON.parse(JSON.stringify(data.jobs)),
+      assignments: JSON.parse(JSON.stringify(data.assignments)),
+      currentWeekStart: data.currentWeekStart.toISOString()
+    };
+
+    const jsonStr = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'planner_data.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast('✓ JSON exported.');
+  });
+
+  // Import JSON
+  document.getElementById("importBtn").addEventListener("click", () => {
+    document.getElementById("importJsonInput").click();
+  });
+
+  document.getElementById("importJsonInput").addEventListener("change", e => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = evt => {
+      try {
+        const imported = JSON.parse(evt.target.result);
+
+        if (!Array.isArray(imported.employees)) return alert('Invalid JSON: employees must be an array.');
+        if (!Array.isArray(imported.jobs)) return alert('Invalid JSON: jobs must be an array.');
+        if (typeof imported.assignments !== 'object') return alert('Invalid JSON: assignments must be an object.');
+
+        data.employees = imported.employees;
+        data.jobs = imported.jobs;
+        data.assignments = imported.assignments;
+        data.currentWeekStart = imported.currentWeekStart
+          ? new Date(imported.currentWeekStart)
+          : startOfWeek(new Date());
+
+        renderAll();
+        showToast('✓ Data imported successfully.');
+      } catch {
+        alert('Failed to parse JSON.');
+      }
+    };
+
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  /* ---------------- DARK MODE ---------------- */
+  const darkToggle = document.getElementById("darkModeToggle");
+  darkToggle.addEventListener("change", () => {
+    const theme = darkToggle.checked ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", theme);
+    forceChartUpdate();
+  });
+
+});
+
 // add job / employee
 document.getElementById('addJobBtn').addEventListener('click', () => {
   const nameInput = document.getElementById('jobNameInput');
