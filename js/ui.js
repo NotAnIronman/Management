@@ -31,7 +31,7 @@ export function showToast(msg, duration = 2500) {
 /* -------------------------------------------------------
    Jobs
 ------------------------------------------------------- */
-export function addJob(name, category, color) {
+export function addJob(name, category, jobClass, color) {
   if (!name.trim()) return;
   const resolvedColor = color || pickUnusedColor();
 
@@ -39,6 +39,7 @@ export function addJob(name, category, color) {
     id: uuid(),
     name: name.trim(),
     category,
+    classification: jobClass,
     color: resolvedColor,
     subtasks: [],
     collapsed: false,
