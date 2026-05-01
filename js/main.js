@@ -238,7 +238,8 @@ document.getElementById('addJobBtn').addEventListener('click', () => {
   const nameInput = document.getElementById('jobNameInput');
   const categoryInput = document.getElementById('jobCategoryInput');
   const colorInput = document.getElementById('jobColorInput');
-  addJob(nameInput.value, categoryInput.value, colorInput.value);
+  const classInput = document.getElementById('jobClassInput');
+  addJob(nameInput.value, categoryInput.value, classInput.value, colorInput.value);
   nameInput.value = '';
 });
 
@@ -247,7 +248,8 @@ document.getElementById('jobNameInput').addEventListener('keydown', e => {
     const nameInput = document.getElementById('jobNameInput');
     const categoryInput = document.getElementById('jobCategoryInput');
     const colorInput = document.getElementById('jobColorInput');
-    addJob(nameInput.value, categoryInput.value, colorInput.value);
+    const classInput = document.getElementById('jobClassInput');
+    addJob(nameInput.value, categoryInput.value, classInput.value, colorInput.value);
     nameInput.value = '';
   }
 });
