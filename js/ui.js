@@ -11,7 +11,8 @@ import {
   ensureAssignment,
   removeJobFromAssignments,
   removeEmployeeFromAssignments,
-  totalHoursForEmployeeWeek
+  totalHoursForEmployeeWeek,
+  scheduleSave
 } from './data.js';
 
 import { forceChartUpdate } from './charts.js';
@@ -47,6 +48,7 @@ export function addJob(name, category, color) {
 
   renderJobs();
   forceChartUpdate();
+  scheduleSave();
 }
 
 export function removeJob(jobId) {
@@ -55,6 +57,7 @@ export function removeJob(jobId) {
   renderJobs();
   renderEmployees();
   forceChartUpdate();
+  scheduleSave();
 }
 
 /* -------------------------------------------------------
@@ -75,6 +78,7 @@ export function addEmployee(name, weeklyBudget, district) {
 
   renderEmployees();
   forceChartUpdate();
+  scheduleSave();
 }
 
 export function removeEmployee(empId) {
@@ -82,6 +86,7 @@ export function removeEmployee(empId) {
   removeEmployeeFromAssignments(empId);
   renderEmployees();
   forceChartUpdate();
+  scheduleSave();
 }
 
 /* -------------------------------------------------------
@@ -150,6 +155,7 @@ export function renderJobs() {
         renderJobs();
         renderEmployees();
         forceChartUpdate();
+        scheduleSave();
       };
 
       const categorySelect = document.createElement('select');
@@ -164,6 +170,7 @@ export function renderJobs() {
         job.category = categorySelect.value;
         renderJobs();
         forceChartUpdate();
+        scheduleSave();
       };
 
       const budgetLabel = document.createElement('span');
@@ -179,6 +186,7 @@ export function renderJobs() {
       budgetInput.onchange = () => {
         job.hoursBudget = parseFloat(budgetInput.value) || 0;
         forceChartUpdate();
+        scheduleSave();
       };
 
       const collapseBtn = document.createElement('button');
@@ -287,6 +295,7 @@ export function renderJobs() {
             delBtn.onclick = () => {
               job.subtasks = job.subtasks.filter(x => x !== st);
               renderJobs();
+              scheduleSave();
             };
 
             row.append(dot, nameSpan, colorDot, delBtn);
@@ -318,6 +327,7 @@ export function renderJobs() {
           nameInput.value = '';
           addColorInput.value = job.color || DEFAULT_COLOR;
           renderJobs();
+          scheduleSave();
         };
 
         addRow.append(nameInput, addColorInput, addBtn);
@@ -362,6 +372,7 @@ function reorderJob(dragId, targetId, category) {
   data.jobs = [...others, ...jobsInCategory];
 
   renderJobs();
+  scheduleSave();
 }
 
 /* -------------------------------------------------------
@@ -408,6 +419,7 @@ export function renderEmployees() {
         emp.district = districtSelect.value;
         renderEmployees();
         forceChartUpdate();
+        scheduleSave();
       };
       districtSpan.appendChild(districtSelect);
 
@@ -574,6 +586,7 @@ export function renderEmployees() {
 
           renderEmployees();
           forceChartUpdate();
+          scheduleSave();
           return;
         }
 
@@ -652,6 +665,7 @@ export function renderEmployees() {
               sub.color = colorEl.value;
               renderEmployees();
               forceChartUpdate();
+              scheduleSave();
             };
           } else {
             colorEl = document.createElement('span');
@@ -668,6 +682,7 @@ export function renderEmployees() {
             assignment.subtasks.splice(index, 1);
             renderEmployees();
             forceChartUpdate();
+            scheduleSave();
           };
 
           subRow.append(dot, subName, subHours, colorEl, del);
@@ -695,6 +710,7 @@ export function renderEmployees() {
             subInput.value = '';
             renderEmployees();
             forceChartUpdate();
+            scheduleSave();
           }
         };
 
@@ -717,6 +733,7 @@ export function addAssignment(weekKey, empId, jobId) {
   ensureAssignment(weekKey, empId, jobId);
   renderEmployees();
   forceChartUpdate();
+  scheduleSave();
 }
 
 export function updateAssignmentHours(weekKey, empId, jobId, hours) {
@@ -724,6 +741,7 @@ export function updateAssignmentHours(weekKey, empId, jobId, hours) {
   assignment.hours = hours;
   renderEmployees();
   forceChartUpdate();
+  scheduleSave();
 }
 
 export function removeAssignment(weekKey, empId, jobId) {
@@ -731,6 +749,7 @@ export function removeAssignment(weekKey, empId, jobId) {
   delete empAssignments[jobId];
   renderEmployees();
   forceChartUpdate();
+  scheduleSave();
 }
 
 /*
