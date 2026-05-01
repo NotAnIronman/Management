@@ -97,266 +97,312 @@ export function renderJobs() {
   const jobsListEl = document.getElementById('jobsList');
   jobsListEl.innerHTML = '';
 
-  const categories = ['Active', 'Upcoming', 'Complete', 'Other'];
+  const statuses = ['Active', 'Upcoming', 'Complete', 'Other'];
+  const classes = ['Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5'];
   const subCategories = ['Electrical', 'Instrumentation', 'Other'];
 
-  categories.forEach(cat => {
-    const section = document.createElement('div');
-    section.className = 'job-category-section';
+  // Helper to render a single job card
+  function renderSingleJob(job) {
+    const div = document.createElement('div');
+    div.className = 'item';
+    div.draggable = true;
+    div.dataset.jobId = job.id;
 
-    const header = document.createElement('div');
-    header.className = 'job-category-header';
-    header.textContent = cat;
-    header.onclick = () => section.classList.toggle('collapsed');
+    if (job.collapsed) div.classList.add('job-collapsed');
 
-    const list = document.createElement('div');
-    list.className = 'job-category-list';
+    /* ---------------- Header Row ---------------- */
+    const headerRow = document.createElement('div');
+    headerRow.className = 'item-header-row';
 
-    const jobsInCat = data.jobs.filter(j => j.category === cat);
+    const dragHandle = document.createElement('div');
+    dragHandle.className = 'job-drag-handle';
+    dragHandle.addEventListener('mousedown', e => e.stopPropagation());
 
-    jobsInCat.forEach(job => {
-      const div = document.createElement('div');
-      div.className = 'item';
-      div.draggable = true;
-      div.dataset.jobId = job.id;
+    const colorBox = document.createElement('div');
+    colorBox.className = 'legend-color';
+    colorBox.style.background = job.color || DEFAULT_COLOR;
 
-      if (job.collapsed) div.classList.add('job-collapsed');
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = job.name;
 
-      /* ---------------- Header Row ---------------- */
-      const headerRow = document.createElement('div');
-      headerRow.className = 'item-header-row';
+    const colorInput = document.createElement('input');
+    colorInput.type = 'color';
+    colorInput.value = job.color || DEFAULT_COLOR;
+    colorInput.onchange = () => {
+      const oldColor = (job.color || DEFAULT_COLOR).toLowerCase();
+      job.color = colorInput.value;
+      colorBox.style.background = colorInput.value;
 
-      const dragHandle = document.createElement('div');
-      dragHandle.className = 'job-drag-handle';
-      dragHandle.addEventListener('mousedown', e => e.stopPropagation());
+      if (job.subtasks) {
+        job.subtasks.forEach(st => {
+          if (!st.color || st.color.toLowerCase() === oldColor) {
+            st.color = colorInput.value;
+          }
+        });
+      }
 
-      const colorBox = document.createElement('div');
-      colorBox.className = 'legend-color';
-      colorBox.style.background = job.color || DEFAULT_COLOR;
+      renderJobs();
+      renderEmployees();
+      forceChartUpdate();
+      scheduleSave();
+    };
 
-      const nameSpan = document.createElement('span');
-      nameSpan.textContent = job.name;
+    const categorySelect = document.createElement('select');
+    ['Active', 'Upcoming', 'Complete', 'Other'].forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c;
+      if (job.category === c) opt.selected = true;
+      categorySelect.appendChild(opt);
+    });
+    categorySelect.onchange = () => {
+      job.category = categorySelect.value;
+      renderJobs();
+      forceChartUpdate();
+      scheduleSave();
+    };
 
-      const colorInput = document.createElement('input');
-      colorInput.type = 'color';
-      colorInput.value = job.color || DEFAULT_COLOR;
-      colorInput.onchange = () => {
-        const oldColor = (job.color || DEFAULT_COLOR).toLowerCase();
-        job.color = colorInput.value;
-        colorBox.style.background = colorInput.value;
+    //Class dropdown
+    const classSelect = document.createElement('select');
+    classes.forEach(cls => {
+      const opt = document.createElement('option');
+      opt.value = cls;
+      opt.textContent = cls;
+      if (job.classification === cls) opt.selected = true;
+      classSelect.appendChild(opt);
+    });
+    classSelect.onchange = () => {
+      job.classification = classSelect.value;
+      renderJobs();
+      forceChartUpdate();
+      scheduleSave();
+    };
 
-        if (job.subtasks) {
-          job.subtasks.forEach(st => {
-            if (!st.color || st.color.toLowerCase() === oldColor) {
-              st.color = colorInput.value;
-            }
-          });
-        }
+    const budgetLabel = document.createElement('span');
+    budgetLabel.textContent = 'Hrs:';
+    budgetLabel.style.cssText = 'font-size:11px;color:var(--text-muted);white-space:nowrap;';
 
-        renderJobs();
-        renderEmployees();
-        forceChartUpdate();
-        scheduleSave();
+    const budgetInput = document.createElement('input');
+    budgetInput.type = 'number';
+    budgetInput.min = '0';
+    budgetInput.step = '1';
+    budgetInput.value = job.hoursBudget || 0;
+    budgetInput.style.width = '52px';
+    budgetInput.onchange = () => {
+      job.hoursBudget = parseFloat(budgetInput.value) || 0;
+      forceChartUpdate();
+      scheduleSave();
+    };
+
+    const collapseBtn = document.createElement('button');
+    collapseBtn.textContent = 'Toggle';
+    collapseBtn.onclick = () => {
+      job.collapsed = !job.collapsed;
+      div.classList.toggle('job-collapsed');
+    };
+
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = 'X';
+    removeBtn.onclick = () => removeJob(job.id);
+
+    headerRow.append(
+      dragHandle,
+      colorBox,
+      nameSpan,
+      colorInput,
+      categorySelect,
+      classSelect,
+      budgetLabel,
+      budgetInput,
+      collapseBtn,
+      removeBtn
+    );
+
+    div.appendChild(headerRow);
+
+    /* ---------------- Subtasks ---------------- */
+    const subtasksContainer = document.createElement('div');
+    subtasksContainer.className = 'job-subtasks';
+
+    subCategories.forEach(subCat => {
+      const catBlock = document.createElement('div');
+      catBlock.className = 'job-subtask-category';
+
+      if (job.subtaskGroupCollapsed?.[subCat]) {
+        catBlock.classList.add('collapsed');
+      }
+
+      const catHeader = document.createElement('div');
+      catHeader.className = 'job-subtask-category-header';
+      catHeader.textContent = subCat;
+      catHeader.onclick = () => {
+        catBlock.classList.toggle('collapsed');
+        job.subtaskGroupCollapsed = job.subtaskGroupCollapsed || {};
+        job.subtaskGroupCollapsed[subCat] = catBlock.classList.contains('collapsed');
       };
 
-      const categorySelect = document.createElement('select');
-      ['Active', 'Upcoming', 'Complete', 'Other'].forEach(c => {
-        const opt = document.createElement('option');
-        opt.value = c;
-        opt.textContent = c;
-        if (job.category === c) opt.selected = true;
-        categorySelect.appendChild(opt);
-      });
-      categorySelect.onchange = () => {
-        job.category = categorySelect.value;
-        renderJobs();
-        forceChartUpdate();
-        scheduleSave();
-      };
+      const items = document.createElement('div');
+      items.className = 'job-subtask-items';
 
-      const budgetLabel = document.createElement('span');
-      budgetLabel.textContent = 'Hrs:';
-      budgetLabel.style.cssText = 'font-size:11px;color:var(--text-muted);white-space:nowrap;';
+      (job.subtasks || [])
+        .filter(st => st.category === subCat)
+        .forEach(st => {
+          const row = document.createElement('div');
+          row.className = 'job-subtask-row';
+          row.draggable = true;
 
-      const budgetInput = document.createElement('input');
-      budgetInput.type = 'number';
-      budgetInput.min = '0';
-      budgetInput.step = '1';
-      budgetInput.value = job.hoursBudget || 0;
-      budgetInput.style.width = '52px';
-      budgetInput.onchange = () => {
-        job.hoursBudget = parseFloat(budgetInput.value) || 0;
-        forceChartUpdate();
-        scheduleSave();
-      };
-
-      const collapseBtn = document.createElement('button');
-      collapseBtn.textContent = 'Toggle';
-      collapseBtn.onclick = () => {
-        job.collapsed = !job.collapsed;
-        div.classList.toggle('job-collapsed');
-      };
-
-      const removeBtn = document.createElement('button');
-      removeBtn.textContent = 'X';
-      removeBtn.onclick = () => removeJob(job.id);
-
-      headerRow.append(
-        dragHandle,
-        colorBox,
-        nameSpan,
-        colorInput,
-        categorySelect,
-        budgetLabel,
-        budgetInput,
-        collapseBtn,
-        removeBtn
-      );
-
-      div.appendChild(headerRow);
-
-      /* ---------------- Subtasks ---------------- */
-      const subtasksContainer = document.createElement('div');
-      subtasksContainer.className = 'job-subtasks';
-
-      subCategories.forEach(subCat => {
-        const catBlock = document.createElement('div');
-        catBlock.className = 'job-subtask-category';
-
-        if (job.subtaskGroupCollapsed?.[subCat]) {
-          catBlock.classList.add('collapsed');
-        }
-
-        const catHeader = document.createElement('div');
-        catHeader.className = 'job-subtask-category-header';
-        catHeader.textContent = subCat;
-        catHeader.onclick = () => {
-          catBlock.classList.toggle('collapsed');
-          job.subtaskGroupCollapsed = job.subtaskGroupCollapsed || {};
-          job.subtaskGroupCollapsed[subCat] = catBlock.classList.contains('collapsed');
-        };
-
-        const items = document.createElement('div');
-        items.className = 'job-subtask-items';
-
-        (job.subtasks || [])
-          .filter(st => st.category === subCat)
-          .forEach(st => {
-            const row = document.createElement('div');
-            row.className = 'job-subtask-row';
-            row.draggable = true;
-
-            row.addEventListener('dragstart', e => {
-              e.stopPropagation();
-              const payload = {
-                kind: 'subtask',
-                jobId: job.id,
-                subtaskId: st.id || null,
-                name: st.name,
-                category: st.category,
-                color: st.color || job.color || DEFAULT_COLOR
-              };
-              e.dataTransfer.setData('application/json', JSON.stringify(payload));
-            });
-
-            const dot = document.createElement('span');
-            dot.className = 'job-subtask-dot';
-            dot.textContent = '•';
-
-            const nameSpan = document.createElement('span');
-            nameSpan.className = 'job-subtask-name';
-            nameSpan.textContent = st.name;
-
-            const stColorPicker = document.createElement('input');
-            stColorPicker.type = 'color';
-            stColorPicker.value = st.color || job.color || DEFAULT_COLOR;
-            stColorPicker.style.cssText = 'position:absolute;opacity:0;width:0;height:0;pointer-events:none;';
-            stColorPicker.onchange = () => {
-              st.color = stColorPicker.value;
-              colorDot.style.background = stColorPicker.value;
-              renderEmployees();
-              forceChartUpdate();
+          row.addEventListener('dragstart', e => {
+            e.stopPropagation();
+            const payload = {
+              kind: 'subtask',
+              jobId: job.id,
+              subtaskId: st.id || null,
+              name: st.name,
+              category: st.category,
+              color: st.color || job.color || DEFAULT_COLOR
             };
-
-            const colorDot = document.createElement('span');
-            colorDot.style.cssText = `
-              display:inline-block;width:12px;height:12px;
-              border-radius:50%;background:${st.color || job.color || DEFAULT_COLOR};
-              flex-shrink:0;cursor:pointer;border:1px solid rgba(0,0,0,0.2);
-              position:relative;
-            `;
-            colorDot.appendChild(stColorPicker);
-            colorDot.onclick = e => {
-              e.stopPropagation();
-              stColorPicker.click();
-            };
-
-            const delBtn = document.createElement('button');
-            delBtn.textContent = 'X';
-            delBtn.onclick = () => {
-              job.subtasks = job.subtasks.filter(x => x !== st);
-              renderJobs();
-              scheduleSave();
-            };
-
-            row.append(dot, nameSpan, colorDot, delBtn);
-            items.appendChild(row);
+            e.dataTransfer.setData('application/json', JSON.stringify(payload));
           });
 
-        const addRow = document.createElement('div');
-        addRow.className = 'job-subtask-add';
+          const dot = document.createElement('span');
+          dot.className = 'job-subtask-dot';
+          dot.textContent = '•';
 
-        const nameInput = document.createElement('input');
-        nameInput.placeholder = 'Subtask name';
+          const nameSpan = document.createElement('span');
+          nameSpan.className = 'job-subtask-name';
+          nameSpan.textContent = st.name;
 
-        const addColorInput = document.createElement('input');
-        addColorInput.type = 'color';
+          const stColorPicker = document.createElement('input');
+          stColorPicker.type = 'color';
+          stColorPicker.value = st.color || job.color || DEFAULT_COLOR;
+          stColorPicker.style.cssText = 'position:absolute;opacity:0;width:0;height:0;pointer-events:none;';
+          stColorPicker.onchange = () => {
+            st.color = stColorPicker.value;
+            colorDot.style.background = stColorPicker.value;
+            renderEmployees();
+            forceChartUpdate();
+            scheduleSave();
+          };
+
+          const colorDot = document.createElement('span');
+          colorDot.style.cssText = `
+            display:inline-block;width:12px;height:12px;
+            border-radius:50%;background:${st.color || job.color || DEFAULT_COLOR};
+            flex-shrink:0;cursor:pointer;border:1px solid rgba(0,0,0,0.2);
+            position:relative;
+          `;
+          colorDot.appendChild(stColorPicker);
+          colorDot.onclick = e => {
+            e.stopPropagation();
+            stColorPicker.click();
+          };
+
+          const delBtn = document.createElement('button');
+          delBtn.textContent = 'X';
+          delBtn.onclick = () => {
+            job.subtasks = job.subtasks.filter(x => x !== st);
+            renderJobs();
+            scheduleSave();
+          };
+
+          row.append(dot, nameSpan, colorDot, delBtn);
+          items.appendChild(row);
+        });
+
+      const addRow = document.createElement('div');
+      addRow.className = 'job-subtask-add';
+
+      const nameInput = document.createElement('input');
+      nameInput.placeholder = 'Subtask name';
+
+      const addColorInput = document.createElement('input');
+      addColorInput.type = 'color';
+      addColorInput.value = job.color || DEFAULT_COLOR;
+      addColorInput.style.display = 'none';
+
+      const addBtn = document.createElement('button');
+      addBtn.textContent = 'Add';
+      addBtn.onclick = () => {
+        if (!nameInput.value.trim()) return;
+        job.subtasks = job.subtasks || [];
+        job.subtasks.push({
+          id: uuid(),
+          name: nameInput.value.trim(),
+          category: subCat,
+          color: addColorInput.value
+        });
+        nameInput.value = '';
         addColorInput.value = job.color || DEFAULT_COLOR;
-        addColorInput.style.display = 'none';
+        renderJobs();
+        scheduleSave();
+      };
 
-        const addBtn = document.createElement('button');
-        addBtn.textContent = 'Add';
-        addBtn.onclick = () => {
-          if (!nameInput.value.trim()) return;
-          job.subtasks = job.subtasks || [];
-          job.subtasks.push({
-            id: uuid(),
-            name: nameInput.value.trim(),
-            category: subCat,
-            color: addColorInput.value
-          });
-          nameInput.value = '';
-          addColorInput.value = job.color || DEFAULT_COLOR;
-          renderJobs();
-          scheduleSave();
-        };
-
-        addRow.append(nameInput, addColorInput, addBtn);
-        catBlock.append(catHeader, items, addRow);
-        subtasksContainer.appendChild(catBlock);
-      });
-
-      div.appendChild(subtasksContainer);
-
-      /* ---------------- Drag reorder ---------------- */
-      div.addEventListener('dragstart', e => {
-        if (e.target !== div && e.target.classList.contains('job-subtask-row')) return;
-        e.dataTransfer.setData('text/plain', job.id);
-        e.dataTransfer.setData('application/json', JSON.stringify({ kind: 'job', jobId: job.id }));
-      });
-
-      div.addEventListener('dragover', e => e.preventDefault());
-      div.addEventListener('drop', e => {
-        e.preventDefault();
-        const draggedId = e.dataTransfer.getData('text/plain');
-        reorderJob(draggedId, job.id, cat);
-      });
-
-      list.appendChild(div);
+      addRow.append(nameInput, addColorInput, addBtn);
+      catBlock.append(catHeader, items, addRow);
+      subtasksContainer.appendChild(catBlock);
     });
 
-    section.append(header, list);
-    jobsListEl.appendChild(section);
+    div.appendChild(subtasksContainer);
+
+    /* ---------------- Drag reorder ---------------- */
+    div.addEventListener('dragstart', e => {
+      if (e.target !== div && e.target.classList.contains('job-subtask-row')) return;
+      e.dataTransfer.setData('text/plain', job.id);
+      e.dataTransfer.setData('application/json', JSON.stringify({ kind: 'job', jobId: job.id }));
+    });
+
+    div.addEventListener('dragover', e => e.preventDefault());
+    div.addEventListener('drop', e => {
+      e.preventDefault();
+      const draggedId = e.dataTransfer.getData('text/plain');
+      reorderJob(draggedId, job.id, job.category);
+    });
+
+    return div;
+  }
+
+  /* ---------------- Status → Class grouping ---------------- */
+  statuses.forEach(status => {
+    const statusSection = document.createElement('div');
+    statusSection.className = 'job-category-section';
+
+    const statusHeader = document.createElement('div');
+    statusHeader.className = 'job-category-header';
+    statusHeader.textContent = status;
+    statusHeader.onclick = () => statusSection.classList.toggle('collapsed');
+
+    const statusList = document.createElement('div');
+    statusList.className = 'job-category-list';
+
+    classes.forEach(cls => {
+      const jobsInGroup = data.jobs.filter(
+        j => j.category === status && j.classification === cls
+      );
+
+      if (jobsInGroup.length === 0) return;
+
+      const classBlock = document.createElement('div');
+      classBlock.className = 'job-class-section';
+
+      const classHeader = document.createElement('div');
+      classHeader.className = 'job-class-header';
+      classHeader.textContent = cls;
+      classHeader.onclick = () => classBlock.classList.toggle('collapsed');
+
+      const classList = document.createElement('div');
+      classList.className = 'job-class-list';
+
+      jobsInGroup.forEach(job => {
+        const jobEl = renderSingleJob(job);
+        classList.appendChild(jobEl);
+      });
+
+      classBlock.append(classHeader, classList);
+      statusList.appendChild(classBlock);
+    });
+
+    statusSection.append(statusHeader, statusList);
+    jobsListEl.appendChild(statusSection);
   });
 }
 
