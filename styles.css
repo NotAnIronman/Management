@@ -94,6 +94,11 @@ header h1{margin:0;font-size:18px;white-space:nowrap;}
 .job-subtask-dot{flex:0 0 auto;margin-right:4px;color:var(--text-muted);}
 .job-subtask-name{flex:1;color:var(--text-primary);}
 
+/* Subtask Classes */
+.job-class-section.collapsed .job-class-list {display: none;}
+.job-class-header {font-weight: 600; padding: 2px 4px; cursor: pointer; color: var(--text-muted);}
+.job-class-section.collapsed .job-class-header {opacity: 0.7;}
+
 /* Employees */
 .district-header{font-weight:bold;font-size:16px;margin:12px 0 6px;color:var(--text-primary);}
 .employee-card{border:1px solid var(--border-color);border-radius:6px;padding:8px;margin-bottom:10px;background:var(--bg-employee-card);}
